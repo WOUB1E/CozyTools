@@ -133,7 +133,7 @@ function main()
 	_, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
 	myNick = sampGetPlayerNickname(myid)
     
-	autoupdate("https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/cosy_ver.json", '['..string.upper(thisScript().name)..']: ', "https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/CosyTools.lua")
+	autoupdate("https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/cosy_ver.json", '['..string.upper(thisScript().name)..']: ', "https://github.com/WOUB1E/CozyTools/raw/refs/heads/main/CosyTools.lua")
 	
 	sampRegisterChatCommand('removeconfig', function()
         os.remove('moonloader\\config\\CosyTools.ini')
@@ -1004,7 +1004,7 @@ function imgui.OnDrawFrame()
 		imgui.Text(u8'-- При нестабильности работы скрипта идите нахуй')
 		imgui.Separator()
 		if imgui.Button(u8'Обновить', imgui.ImVec2(100,36)) then
-			autoupdate("https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/cosy_ver.json", '['..string.upper(thisScript().name)..']: ', "https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/CosyTools.lua")
+			autoupdate("https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/cosy_ver.json", '['..string.upper(thisScript().name)..']: ', "https://github.com/WOUB1E/CozyTools/raw/refs/heads/main/CosyTools.lua")
 		end
 		imgui.Hint(u8"Данная кнопка проверит наличие обновлений скрипта\nА так же обновит его при наличии обновлений.",0)
 		imgui.SameLine()
