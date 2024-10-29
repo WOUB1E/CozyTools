@@ -1,5 +1,5 @@
 script_name("CosyTools")
-script_version("1")
+script_version("2")
 
 local TAG = '{7B68EE}[WOUBLE] {CFCFCF}CosyTools | {9B9B9B}'
 local DTAG = '{7B68EE}CosyDEBUG | {9B9B9B}'
@@ -15,48 +15,23 @@ local effil = require 'effil'
 local requests = require "requests"
 local inicfg = require 'inicfg'
 local fa = require 'fAwesome5'
+local was_command = false
 local ffi = require("ffi")
 local font = renderCreateFont("Tahoma", 9, 5) --[[Шрифт]]
 local encoding = require 'encoding'
 encoding.default = 'CP1251'
 u8 = encoding.UTF8
-local selected = 4
+local selected = 1
+local statusskin = 0
+local myskin = 0
+local lastskin = 0
+local rab = false
 local active = false
 --[[settings colors and lines]]
-local colorObj = '0xFFFFFFFF' --[[Укажите формат цвета , например 0xFFFFFFFF - белый цвет]]
 local linewidth = '3.5' --[[Рекомендованные значения от 3.0 до 5.0]]
 --[[settings colors and lines]]
 
 local mainIni = inicfg.load({
-	render = {
-	    rtreasure = false,
-	    rbookmark = false,
-	    rdeer = false,
-	    rflax = false,
-	    rcotton = false,
-	    rseeds = false,
-	    rore = false,
-	    rtree = false,
-		rwood = false,
-		myObjectOne = false,
-		myObjectTwo = false,
-		rclothes = false,
-		rmushroom = false,
-		rgift = false,
-		rbox = false,
-		rore_underground = false,
-	    nameObjectOne = u8'Object name',
-		nameObjectTwo = u8'Object name'
-    },
-    ghetto = {
-	    rgrove = false,
-	    rballas = false,
-	    rrifa = false,
-	    raztec = false,
-	    rNightWolves = false,
-	    rvagos = false,
-		rpaint = false
-	},
 	settings = {
 	    scriptName = u8'ch',
 		clue = false,
@@ -71,35 +46,27 @@ local mainIni = inicfg.load({
 		ds_id = '<@id>'
 		
 	},
+	autopatch = {
+		work = false,
+		d_patch = u8'A000A'
+	},
 	simons = {},
-	aw_leaders = {'начальник тюрьмы', 'зам. начальника тюрьмы', 'директор фбр', 'заместитель директора фбр', 'андершериф', 'шериф', 'заместитель шефа', 'шеф', 'local', 'куратор'},
+	aw_leaders = {u8'начальник тюрьмы', u8'зам. начальника тюрьмы', u8'директор фбр', u8'заместитель директора фбр', u8'андершериф', u8'шериф', u8'заместитель шефа', u8'шеф', u8'local', u8'куратор'},
 	aw_names= {}
 }, 'CosyTools')
-
+--local opis_official = "На поясе висит жетон FBI"
+--local opis_swatform = 'На поясе жетон FBI/На груди нашивка "'..number..'"'
 local work = imgui.ImBool(true)
 local debuger = imgui.ImBool(false)
+local ap_work = imgui.ImBool(mainIni.autopatch.work)
+local ap_d_official = 'На поясе висит жетон FBI'
+local ap_d_swat = 'На поясе жетон FBI/На груди нашивка '
+local ap_d_patch = imgui.ImBuffer(mainIni.autopatch.d_patch, 100)
 local aw_work = imgui.ImBool(mainIni.antiwarn.work)
 local aw_ds = imgui.ImBool(mainIni.antiwarn.ds)
 local aw_vk = imgui.ImBool(mainIni.antiwarn.vk)
 local aw_action = imgui.ImInt(mainIni.antiwarn.action)
 local aw_ds_id = imgui.ImBuffer(mainIni.antiwarn.ds_id,200)
-local rtreasure = imgui.ImBool(mainIni.render.rtreasure)
-local rbookmark = imgui.ImBool(mainIni.render.rbookmark)
-local rdeer = imgui.ImBool(mainIni.render.rdeer)
-local rflax = imgui.ImBool(mainIni.render.rflax)
-local rcotton = imgui.ImBool(mainIni.render.rcotton)
-local rseeds = imgui.ImBool(mainIni.render.rseeds)
-local rore = imgui.ImBool(mainIni.render.rore)
-local rore_underground = imgui.ImBool(mainIni.render.rore_underground)
-local rtree = imgui.ImBool(mainIni.render.rtree)
-local rwood = imgui.ImBool(mainIni.render.rwood)
-local myObjectOne = imgui.ImBool(mainIni.render.myObjectOne)
-local myObjectTwo = imgui.ImBool(mainIni.render.myObjectTwo)
-local rclothes = imgui.ImBool(mainIni.render.rclothes)
-local rmushroom = imgui.ImBool(mainIni.render.rmushroom)
-local rgift= imgui.ImBool(mainIni.render.rgift)
-local nameObjectOne = imgui.ImBuffer(mainIni.render.nameObjectOne, 256)
-local nameObjectTwo = imgui.ImBuffer(mainIni.render.nameObjectTwo, 256)
 local testbuffer = imgui.ImBuffer(50)
 local name = imgui.ImBuffer(50)
 local aw_leader_name = imgui.ImBuffer(50)
@@ -108,16 +75,6 @@ local scriptName = imgui.ImBuffer(mainIni.settings.scriptName, 256)
 local clue = imgui.ImBool(mainIni.settings.clue)
 local distanceoff = imgui.ImBool(mainIni.settings.distanceoff)
 local selected_item = imgui.ImInt(mainIni.settings.selected_item)
-local rbox = imgui.ImBool(mainIni.render.rbox)
-
-------------------------------------------------------
-local rgrove = imgui.ImBool(mainIni.ghetto.rgrove)
-local rballas = imgui.ImBool(mainIni.ghetto.rballas)
-local rrifa = imgui.ImBool(mainIni.ghetto.rrifa)
-local raztec = imgui.ImBool(mainIni.ghetto.raztec)
-local rNightWolves = imgui.ImBool(mainIni.ghetto.rNightWolves)
-local rvagos = imgui.ImBool(mainIni.ghetto.rvagos)
-local rpaint = imgui.ImBool(mainIni.ghetto.rpaint)
 
 
 local main_window_state = imgui.ImBool(false)
@@ -130,11 +87,10 @@ if not doesFileExist('moonloader/config/CosyTools.ini') then inicfg.save(mainIni
 function main()
 	if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
-	_, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
-	myNick = sampGetPlayerNickname(myid)
-    
+	--sampGetPlayerIdByCharHandle
 	autoupdate("https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/cosy_ver.json", '['..string.upper(thisScript().name)..']: ', "https://github.com/WOUB1E/CozyTools/raw/refs/heads/main/CosyTools.lua")
-	
+	getMyInfo()
+	ap_calc()
 	sampRegisterChatCommand('removeconfig', function()
         os.remove('moonloader\\config\\CosyTools.ini')
 		thisScript():reload()
@@ -156,6 +112,21 @@ function main()
 		else
 			msg('AntiWarn {E92313}Выключен')
 		end
+	end)
+	
+	sampRegisterChatCommand('qq',function()
+		raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
+		raknetDeleteBitStream(raknetNewBitStream())
+	end)
+	
+	sampRegisterChatCommand('lrec',function(arg)
+		if tonumber(arg) then
+			msg('Перезаходим через '..arg..' сек.')
+			arg = tonumber(arg) * 1000
+			rec(arg)
+		else
+			msg('Введите кол-во секунд.')
+		end 
 	end)
 	
 	sampRegisterChatCommand(mainIni.settings.scriptName, function()
@@ -186,397 +157,8 @@ function main()
 				imgui.Process = main_window_state.v
 			end
 		end
-		if rdeer.v then
-		    for k,v in ipairs(getAllChars()) do
-			    if select(2, sampGetPlayerIdByCharHandle(v)) == -1 and v ~= PLAYER_PED and getCharModel(v) == 3150 then
-			        local xp, yp, zp = getCharCoordinates(PLAYER_PED)
-				    local px, py, pz = getCharCoordinates(v)
-				    local wX, wY = convert3DCoordsToScreen(px, py, pz)
-				    local myPosX, myPosY = convert3DCoordsToScreen(getCharCoordinates(PLAYER_PED))
-				    distance = string.format("%.0fм", getDistanceBetweenCoords3d(px,py,pz,xp,yp,zp))
-				    if isPointOnScreen(px, py, pz, 0) then
-					    if distanceoff.v then
-							renderFontDrawText(font, ' Олень', wX, wY , colorObj)
-						elseif distanceoff.v == false then
-				            renderFontDrawText(font, ' Олень\n Дистанция: '..distance, wX, wY , colorObj)
-						end
-				        renderDrawLine(myPosX, myPosY, wX, wY, linewidth, colorObj)
-				    end
-			    end
-		    end
-	    end
-		if rtreasure.v or rseeds.v or rore.v or rclothes.v or rgift.v then -- new test functions optimization
-		    for k, v in pairs(getAllObjects()) do
-			    local num = getObjectModel(v)
-			    if isObjectOnScreen(v) and rtreasure.v then
-				    if num == 2680 then
-					    local xp,yp,zp = getCharCoordinates(PLAYER_PED)
-					    local res, px, py, pz = getObjectCoordinates(v)
-					    local wX, wY = convert3DCoordsToScreen(px, py, pz)
-					    distance = string.format("%.0fм", getDistanceBetweenCoords3d(px,py,pz,xp,yp,zp))
-					    local myPosX, myPosY = convert3DCoordsToScreen(getCharCoordinates(PLAYER_PED))
-					    if getDistanceBetweenCoords3d(px,py,pz,xp,yp,zp) > 32 then
-						    if distanceoff.v then
-					            renderFontDrawText(font, ' Клад(Возможно фейк)', wX, wY , colorObj)
-                            elseif distanceoff.v == false then
-							    renderFontDrawText(font, ' Клад(Возможно фейк)\n Дистанция: '..distance, wX, wY , colorObj)
-						    end
-					    elseif getDistanceBetweenCoords3d(px,py,pz,xp,yp,zp) < 32 then
-						    if distanceoff.v then
-					            renderFontDrawText(font, ' Клад', wX, wY , colorObj)
-                            elseif distanceoff.v == false then
-							    renderFontDrawText(font, ' Клад\n Дистанция: '..distance, wX, wY , colorObj)
-						    end
-					    end
-					    renderDrawLine(myPosX, myPosY, wX, wY, linewidth, colorObj)
-				    end
-			    end
-			if isObjectOnScreen(v) and rseeds.v then
-				if num == 859 then
-					local res, px, py, pz = getObjectCoordinates(v)
-					local wX, wY = convert3DCoordsToScreen(px, py, pz)
-					local xp,yp,zp = getCharCoordinates(PLAYER_PED)
-					local myPosX, myPosY = convert3DCoordsToScreen(getCharCoordinates(PLAYER_PED))
-					distance = string.format("%.0fм", getDistanceBetweenCoords3d(px,py,pz,xp,yp,zp))
-					if distanceoff.v then
-						renderFontDrawText(font, ' Семена', wX, wY , colorObj)
-					elseif distanceoff.v == false then
-						renderFontDrawText(font, ' Семена\n Дистанция: '..distance, wX, wY , colorObj)
-					end
-					renderDrawLine(myPosX, myPosY, wX, wY, linewidth, colorObj)
-				end
-			end
-            if isObjectOnScreen(v) and rore.v then
-				if num == 854 then
-					local res, px, py, pz = getObjectCoordinates(v)
-					local wX, wY = convert3DCoordsToScreen(px, py, pz)
-					local xp,yp,zp = getCharCoordinates(PLAYER_PED)
-					local myPosX, myPosY = convert3DCoordsToScreen(getCharCoordinates(PLAYER_PED))
-					distance = string.format("%.0fм", getDistanceBetweenCoords3d(px,py,pz,xp,yp,zp))
-					if distanceoff.v then
-						renderFontDrawText(font, ' Руда', wX, wY , colorObj)
-					elseif distanceoff.v == false then
-						renderFontDrawText(font, ' Руда\n Дистанция: '..distance, wX, wY , colorObj)
-					end
-					renderDrawLine(myPosX, myPosY, wX, wY, linewidth, colorObj)
-				end
-			end
-			if isObjectOnScreen(v) and rclothes.v then
-				if num == 18893 or num == 2844 or num == 2819 or num == 18919 or num == 18974 or num == 18946 or num == 2705 or num == 2706 then
-					local res, px, py, pz = getObjectCoordinates(v)
-					local wX, wY = convert3DCoordsToScreen(px, py, pz)
-					local xp,yp,zp = getCharCoordinates(PLAYER_PED)
-					local myPosX, myPosY = convert3DCoordsToScreen(getCharCoordinates(PLAYER_PED))
-					distance = string.format("%.0fм", getDistanceBetweenCoords3d(px,py,pz,xp,yp,zp))
-					if distanceoff.v then
-						renderFontDrawText(font, ' Рваная одежда', wX, wY , colorObj)
-					elseif distanceoff.v == false then
-						renderFontDrawText(font, ' Рваная одежда\n Дистанция: '..distance, wX, wY , colorObj)
-					end
-					renderDrawLine(myPosX, myPosY, wX, wY, linewidth, colorObj)
-				end
-			end
-			if isObjectOnScreen(v) and rgift.v then
-				if num == 19054 or num == 19055 or num == 19056 or num == 19057 or num == 19058 then
-					local res, px, py, pz = getObjectCoordinates(v)
-					local wX, wY = convert3DCoordsToScreen(px, py, pz)
-					local xp,yp,zp = getCharCoordinates(PLAYER_PED)
-					local myPosX, myPosY = convert3DCoordsToScreen(getCharCoordinates(PLAYER_PED))
-					distance = string.format("%.0fм", getDistanceBetweenCoords3d(px,py,pz,xp,yp,zp))
-					if distanceoff.v then
-						renderFontDrawText(font, ' Подарок', wX, wY , colorObj)
-					elseif distanceoff.v == false then
-						renderFontDrawText(font, ' Подарок\n Дистанция: '..distance, wX, wY , colorObj)
-					end
-					renderDrawLine(myPosX, myPosY, wX, wY, linewidth, colorObj)
-				end
-			end
-		    end
-	    end
-		for id = 0, 2048 do
-            local result = sampIs3dTextDefined( id )
-            if result then
-                local text, color, posX, posY, posZ, distance, ignoreWalls, playerId, vehicleId = sampGet3dTextInfoById( id )
-				distance = string.format("%.0fм", getDistanceBetweenCoords3d(posX, posY, posZ,x2,y2,z2))
-				local textograffiti = text..'\n\n         - (Дистанция: ' ..distance..') -'
-				local texto = text..'\n - (Дистанция: ' ..distance..') -'
-                if rbookmark.v and text:find("Закладка") then
-                    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-                    if wposX < resX and wposY < resY and isPointOnScreen(posX,posY,posZ,1) then
-						if distanceoff == false then
-							renderFontDrawText(font,' Закладка\n Дистанция: '..distance, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,' Закладка', wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if rflax.v and text:find("Лён") then
-                    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-                    if wposX < resX and wposY < resY and isPointOnScreen(posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,texto, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if rcotton.v and text:find("Хлопок")then
-                    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-                    if wposX < resX and wposY < resY and isPointOnScreen(posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,texto, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				--деревья
-				if rtree.v and text:find("Кокосовое дерево") or rtree.v and text:find("Сливовое дерево") or rtree.v and text:find("Яблочное дерево") then
-                    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-                    if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-						    renderFontDrawText(font,texto, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if rwood.v and text:find("Дерево высшего качества") then
-					local resX, resY = getScreenResolution()
-					local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-					if isPointOnScreen (posX,posY,posZ,1) then
-					    renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj)
-					end
-                    if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-						if distanceoff.v == false then
-                            renderFontDrawText(font,' Дерево выс.качества\n Дистанция: '..distance, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,' Дерево выс.качества', wposX, wposY, colorObj)
-						end
-					end
-                end
-				if rore_underground.v and text:find("Место добычи ресурсов") then
-					local resX, resY = getScreenResolution()
-					local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-					if isPointOnScreen (posX,posY,posZ,1) then
-					    renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj)
-					end
-                    if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-						if distanceoff.v == false then
-                            renderFontDrawText(font,' Руда(Подземная)\n Дистанция: '..distance, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,' Руда(Подземная)', wposX, wposY, colorObj)
-						end
-					end
-                end
-				if rbox.v and text:find("Открыть сундук") then
-					local resX, resY = getScreenResolution()
-					local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-					if isPointOnScreen (posX,posY,posZ,1) then
-					    renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj)
-					end
-                    if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-						if distanceoff.v == false then
-                            renderFontDrawText(font,' Сундук BomjGang\n Дистанция: '..distance, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,' Сундук BomjGang', wposX, wposY, colorObj)
-						end
-					end
-                end
-				--банды
-				if rgrove.v and text:find("Банда: {ff6666}{009327}Grove Street") then
-                    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-                    if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,textograffiti, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if rballas.v and text:find("Банда: {ff6666}{CC00CC}East Side Ballas") then
-				    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-						renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj)
-					end
-                    if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,textograffiti, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-			    if rrifa.v and text:find("Банда: {ff6666}{6666FF}The Rifa") then
-				    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-					if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,textograffiti, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if raztec.v and text:find("Банда: {ff6666}{00FFE2}Varrios Los Aztecas") then
-				    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-					if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,textograffiti, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if rNightWolves.v and text:find("Банда: {ff6666}{A87878}Night Wolves") then
-				    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-					if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,textograffiti, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if rvagos.v and text:find("Банда: {ff6666}{D1DB1C}Los Santos Vagos") and text:find('Повторно закрасить можно через:') then
-				    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-					if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,textograffiti, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if rpaint.v and text:find("Банда: {ff6666}{00FFE2}Varrios Los Aztecas") and not text:find('Повторно закрасить можно через:') or rpaint.v and text:find("Банда: {ff6666}{D1DB1C}Los Santos Vagos") and not text:find('Повторно закрасить можно через:') or rpaint.v and text:find("Банда: {ff6666}{A87878}Night Wolves") and not text:find('Повторно закрасить можно через:') or  rpaint.v and text:find("Банда: {ff6666}{6666FF}The Rifa") and not text:find('Повторно закрасить можно через:') or  rpaint.v and text:find("Банда: {ff6666}{CC00CC}East Side Ballas") and not text:find('Повторно закрасить можно через:') or rpaint.v and text:find("Банда: {ff6666}{009327}Grove Street") and not text:find('Повторно закрасить можно через:') then
-				    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-					if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,texto, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if rmushroom.v and text:find("Срезать гриб") then
-                    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-                    if wposX < resX and wposY < resY and isPointOnScreen(posX,posY,posZ,1) then
-						if distanceoff.v == false then
-                            renderFontDrawText(font,' Гриб\n Дистанция: '..distance, wposX, wposY, colorObj)
-                        elseif distanceoff.v then
-							renderFontDrawText(font,' Гриб', wposX, wposY, colorObj)
-						end
-					end
-                end
-				-------------------------------Свои obj-----------------------------------
-				if myObjectOne.v and text:find(u8:decode(nameObjectOne.v)) then 
-				    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-						renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-					end
-					if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,texto, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-				if myObjectTwo.v and text:find(u8:decode(nameObjectTwo.v)) then 
-				    local wposX, wposY = convert3DCoordsToScreen(posX,posY,posZ)
-                    x2,y2,z2 = getCharCoordinates(PLAYER_PED)
-                    x10, y10 = convert3DCoordsToScreen(x2,y2,z2)
-                    local resX, resY = getScreenResolution()
-					if isPointOnScreen (posX,posY,posZ,1) then
-                        renderDrawLine(x10, y10, wposX, wposY, linewidth, colorObj) 
-                    end
-                    if wposX < resX and wposY < resY and isPointOnScreen (posX,posY,posZ,1) then
-                        if distanceoff.v == false then
-							renderFontDrawText(font,texto, wposX, wposY, colorObj)
-						elseif distanceoff.v then
-							renderFontDrawText(font,text, wposX, wposY, colorObj)
-						end
-                    end
-                end
-			end
-		end
+		
+	
         if main_window_state.v == false then
             imgui.Process = false
         end
@@ -589,25 +171,65 @@ function samp.onShowDialog(did, style, title, b1, b2, text)
 		print(text)
 		print('-    ---    ---   ---   ---   ---   ---   -')
 	end
-	if did == 15253 then
-		sampSendDialogResponse(did, 1, 1, nil)
-		return false
-	elseif did == 15254 then
+	if work.v then
+		if title:find('%{.+%}Активные предложения') then
+			local count = 0
+			for line in text:gmatch('[^\r\n]+') do
+				count = count + 1
+				if line:find('.+\t[A-z_0-9]+\t.+') and was_command then
+					local sender = string.match(line, '.+\t([A-z_0-9]+)\t.+')
+					if table.concat(mainIni.simons, ', '):find(sender) then
+						tap = count
+						sampSendDialogResponse(did, 1, tap-2, nil)
+					end
+					return false
+				elseif line:find('Принять предложение') and was_command then
+					sampSendDialogResponse(did, 1, 5, nil)
+					was_command = false
+					return false
+				else
+					if debuger.v then
+						dmsg(was_command)
+						dmsg(line)
+					end
+				end
+			end
+		end
+	end
+	if ap_work.v and rab then
+		if title:find("%{BFBBBA%}Личные настройки") then -- сеттингс
+			sampSendDialogResponse(did, 1, 7, nil)
+			return false
+		elseif title:find("%{BFBBBA%}Настройки персонажа") then -- личные настройки
+			sampSendDialogResponse(did, 1, 2, nil)
+			return false
+		elseif did == 15016 then -- установка описания
+			if statusskin == 1 then
+				sampSendDialogResponse(did, 1, nil, ap_d_official)
+				msg(ap_d_official)
+				rab = false
+				return false
+			elseif statusskin == 2 then
+				sampSendDialogResponse(did, 1, nil, ap_d_swat..''..ap_d_patch.v)
+				rab = false
+				return false
+			elseif statusskin == 0 then
+				sampSendDialogResponse(did, 2, nil, nil)
+				rab = false
+				return false
+			end
+		elseif did == 15017 then
+			sampSendDialogResponse(did, 1, nil, nil)
+			if statusskin ~= 0 then		
+				SummonSettings()
+			end
+			return false
+		end
+	end
+	if title:find('.+Описание персонажа') and did == 0 then
 		sampSendDialogResponse(did, 1, nil, nil)
 		return false
-	elseif did == 25893 and smi  then
-		sampSendDialogResponse(did, 1, nil, nil)
-		return false
-	elseif did == 15346 and smi  then
-		sampSendDialogResponse(did, 1, nil, nil)
-		return false
-	elseif did == 25477 and smi then
-		sampSendDialogResponse(did, 1, 0, nil)
-		return false
-	elseif did == 15347 and smi then
-		sampSendDialogResponse(did, 1, nil, nil)
-		return false
-	end	
+	end
 end
 
 function autoupdate(json_url, prefix, url)
@@ -630,6 +252,7 @@ function autoupdate(json_url, prefix, url)
                 local dlstatus = require('moonloader').download_status
                 local color = -1
                 msg('Обнаружено обновление. Пытаюсь обновиться c '..thisScript().version..' на '..updateversion)
+				main_window_state.v = not main_window_state.v
                 wait(250)
                 downloadUrlToFile(updatelink, thisScript().path,
                   function(id3, status1, p13, p23)
@@ -654,7 +277,7 @@ function autoupdate(json_url, prefix, url)
             else
               update = false
               msg('У вас стоит v'..thisScript().version..'. Обновление не требуется.')
-			  msg((work.v and c_green..'SimonSays '..c_main..' | ' or c_red..'SimonSays '..c_main..' | ')..''..(aw_work.v and c_green..'AntiWarn '..c_main..' | ' or c_red..'AntiWarn '..c_main..' | '))
+			  msg((work.v and c_green or c_red)..'SimonSays'..c_main..' | '..(aw_work.v and c_green or c_red)..'AntiWarn'..c_main..' | '..(ap_work.v and c_green or c_red)..'AutoPatch')
             end
           end
         else
@@ -667,6 +290,13 @@ function autoupdate(json_url, prefix, url)
   while update ~= false do wait(100) end
 end
 
+function getMyInfo()
+	res, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
+	if res then
+		myNick = sampGetPlayerNickname(myid)
+	end
+end
+
 function msg(text)
 	sampAddChatMessage(TAG..''..text,-1)
 end
@@ -676,10 +306,25 @@ function dmsg(text)
 end
 
 function samp.onServerMessage(color,text)
+	-- autopatch
+	if ap_work.v then
+		if text:find("Устанавливать описание можно один раз в минуту.") then
+			lua_thread.create(function()
+				wait(10000)
+				lastskin = 0
+				rab = true
+				SummonSettings()
+			end)
+			return false
+		elseif text:find("Используйте не меньше 10 и не больше 80 символов!") then
+			msg('Ошибка. Используйте не меньше 10 и не больше 80 символов!')
+			return false
+		end
+	end 
+	-- autopatch
 	-- antiwarn
 	if aw_work.v then
-		_, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
-		myNick = sampGetPlayerNickname(myid)
+		getMyInfo()
 		if text:find('%[R%].-%A+ %w+_%w+%[.+%]: .+') then
 			local tag, textt = string.match(text,'%[R%].+(%A+) %w+_%w+%[.+%]: (.+)')
 			find_me(text,textt,tag)
@@ -698,8 +343,7 @@ function samp.onServerMessage(color,text)
 			print(text)
 			local simon, command = string.match(text, '%(%( (.+)%[%d+%]: %{B7AFAF%}#(.+)%{FFFFFF%} %)%)')
 			if table.concat(mainIni.simons, ', '):find(simon) then
-				_, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
-				myNick = sampGetPlayerNickname(myid)
+				getMyInfo()
 				if simon  ~= myNick then
 					lua_thread.create(function()
 						wait(200)
@@ -711,8 +355,7 @@ function samp.onServerMessage(color,text)
 			print(text)
 			local simon, who, command = string.match(text, '%(%( (.+)%[%d+%]: %{B7AFAF%}(.+), (.+)%{FFFFFF%} %)%)')
 			if table.concat(mainIni.simons, ', '):find(simon) then
-				_, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
-				myNick = sampGetPlayerNickname(myid)
+				getMyInfo()
 				if simon  ~= myNick then
 					if who == myid or who == myNick then
 						lua_thread.create(function()
@@ -725,8 +368,7 @@ function samp.onServerMessage(color,text)
 		elseif text:find('%{C04312%}%[Семья%].+ %w+_%w+%[%d+%]:%{B9C1B8%} #.+') then
 			local simon, command = string.match(text, '%{C04312%}%[Семья%].+ (%w+_%w+)%[%d+%]:%{B9C1B8%} #(.+)')
 			if table.concat(mainIni.simons, ', '):find(simon) then
-				_, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
-				myNick = sampGetPlayerNickname(myid)
+				getMyInfo()
 				if simon  ~= myNick then
 					lua_thread.create(function()
 						wait(200)
@@ -737,8 +379,7 @@ function samp.onServerMessage(color,text)
 		elseif text:find('%[R%].+ %w+_%w+%[%d+%]: %(%( #.+ %)%)') then
 			local simon, command = string.match(text, '%[R%].+ (%w+_%w+)%[%d+%]: %(%( #(.+) %)%)')
 			if table.concat(mainIni.simons, ', '):find(simon) then
-				_, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
-				myNick = sampGetPlayerNickname(myid)
+				getMyInfo()
 				if simon  ~= myNick then
 					lua_thread.create(function()
 						wait(200)
@@ -746,9 +387,16 @@ function samp.onServerMessage(color,text)
 					end)
 				end
 			end
+		elseif text:find('%[Новое предложение%]%{ffffff%} Вам поступило предложение от игрока .+%. Используйте команду: /offer или клавишу X') then
+			local simon = string.match(text, '%[Новое предложение%]%{ffffff%} Вам поступило предложение от игрока (.+)%. Используйте команду: /offer или клавишу X')
+			if table.concat(mainIni.simons, ', '):find(simon) then
+				sampAddChatMessage('{73B461}[Новое предложение]{ffffff} Вам поступило предложение от игрока '..simon..'. Используйте команду: /offer или клавишу X',-1)
+				was_command = true
+				sampSendChat('/offer')
+			end
 		end
 	end
-	-- simon
+	-- simon return
 end
 
 function key_selection()
@@ -773,134 +421,16 @@ function imgui.OnDrawFrame()
 	imgui.Separator()
 	if imgui.Button(fa.ICON_FA_USER .. u8' Саймон', imgui.ImVec2(135, 70.4)) then selected = 2 end
 	imgui.Separator()
-	if imgui.Button(fa.ICON_FA_WRENCH	 .. u8' АвтоНашивка', imgui.ImVec2(135, 70.4)) then selected = 5 end
+	if imgui.Button(fa.ICON_FA_WRENCH	 .. u8' SOON', imgui.ImVec2(135, 70.4)) then selected = 5 end
 	imgui.Separator()
-	if imgui.Button(fa.ICON_FA_ELLIPSIS_V .. u8' АнтиВыговор', imgui.ImVec2(135, 70.4)) then selected = 4 end
+	if imgui.Button(fa.ICON_FA_EXCLAMATION_TRIANGLE .. u8' АнтиВыговор', imgui.ImVec2(135, 70.4)) then selected = 4 end
 	imgui.Separator()
-	if imgui.Button(fa.ICON_FA_BINOCULARS .. u8' Рендер', imgui.ImVec2(135, 70.4)) then selected = 3 end
+	if imgui.Button(fa.ICON_FA_ELLIPSIS_V .. u8' Другое', imgui.ImVec2(135, 70.4)) then selected = 3 end
 	imgui.EndChild()
 	imgui.SameLine()
-	if selected == 3 then
-		imgui.BeginChild('##render', imgui.ImVec2(227, 425), true)
-		imgui.CenterText(u8'Основное')
-		imgui.Separator()
-		imgui.Checkbox(u8"Лен", rflax)
-		-- [[if clue.v == false then...end -- проверка скрытия подсказок ]]
-		if clue.v == false then
-			imgui.Hint(u8"Активирует рендер на ресурс лен\nПримечание: Рендер срабатывает на грядки льна у домов",0) 
-		end
-		imgui.Checkbox(u8"Хлопок", rcotton)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на ресурс хлопок\nПримечание: Рендер срабатывает на грядки хлопка у домов",0)
-		end
-		imgui.Checkbox(u8"Клады", rtreasure)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на клад [Красный чемодан с замком]\nПримечание: Разработчики недавно добавили систему фейк-клада\nБудьте осторожны!",0)
-	    end
-		imgui.Checkbox(u8"Закладки", rbookmark)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на закладки",0)
-	    end
-		imgui.Checkbox(u8"Семена", rseeds)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на семена наркотиков",0)
-	    end
-		imgui.Checkbox(u8"Олени", rdeer)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на оленей\nПримечание: Возможны баги из за новых кастомных оленей",0)
-	    end
-		imgui.Checkbox(u8"Руда", rore)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на руду\nПримечание: Рендер не показывает название руд",0)
-	    end
-		imgui.Checkbox(u8"Деревья с плодами", rtree)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на деревья",0)
-	    end
-		imgui.Checkbox(u8"Деревья высшего качества", rwood)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на деревья высшего качества",0)
-	    end
-		imgui.Checkbox(u8"Рваная одежда", rclothes)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на рваную одежду",0)
-	    end
-		imgui.Checkbox(u8"Грибы", rmushroom)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на грибы",0)
-	    end
-		imgui.Checkbox(u8"Подарки(По карте)", rgift)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на подарки, которые спавнятся по карте",0)
-	    end
-		imgui.Checkbox(u8"Руда(Подземная шахта)", rore_underground)
-		if clue.v == false then
-		    imgui.Hint(u8"Активирует рендер на руду, которая находится в подземной шахте",0)
-	    end
-		imgui.EndChild()
-		imgui.SameLine()
-		imgui.BeginChild('##render2', imgui.ImVec2(227, 425), true)
-		imgui.CenterText(u8'Свои объекты(триггеры)')
-		imgui.Separator()
-		imgui.Text(u8'Свой Object #1')
-		imgui.Checkbox(u8"", myObjectOne)
-		if clue.v == false then
-		    imgui.Hint(u8"Данный чекбокс позволяет добавить свой кастомный триггер на надпись\nПримечание: Учитывайте регистр надписи",0)
-	    end
-		imgui.SameLine()
-		imgui.InputText(u8'##Название объекта для рендера №1', nameObjectOne)
-		if clue.v == false then
-		    imgui.Hint(u8"Напишите сюда текст, на который хотите сделать триггер\nПримечание: Если надпись ALT- то так и пишите ALT",0)
-	    end
-		imgui.Text(u8'Свой Object #2')
-		imgui.Checkbox(u8"", myObjectTwo)
-		if clue.v == false then
-		    imgui.Hint(u8"Данный чекбокс позволяет добавить свой кастомный триггер на надпись\nПримечание: Учитывайте регистр надписи",0)
-	    end
-		imgui.SameLine()
-		imgui.InputText(u8'##Название объекта для рендера №2', nameObjectTwo)
-		imgui.Separator()
-		imgui.CenterText(u8'Рендер граффити')
-		imgui.Separator()
-		if imgui.Checkbox(u8"Грув", rgrove) then
-			if rpaint.v then
-			    rpaint.v = false
-			end
-		end
-	    if imgui.Checkbox(u8"Баллас", rballas) then
-			if rpaint.v then
-			    rpaint.v = false
-			end
-		end
-	    if imgui.Checkbox(u8"Рифа", rrifa) then
-			if rpaint.v then
-			    rpaint.v = false
-			end
-		end
-	    if imgui.Checkbox(u8"Ацтек", raztec) then
-		    if rpaint.v then
-			    rpaint.v = false
-			end
-		end
-	    if imgui.Checkbox(u8"Ночные волки", rNightWolves) then
-			if rpaint.v then
-			    rpaint.v = false
-			end
-		end
-	    if imgui.Checkbox(u8"Вагос", rvagos) then
-			if rpaint.v then
-			    rpaint.v = false
-			end
-		end
-		if imgui.Checkbox(u8"Доступные для закраски", rpaint) then
-			rgrove.v = false
-			rballas.v = false
-			raztec.v = false
-			rNightWolves.v = false
-			rvagos.v = false
-			rrifa.v = false--[[Система блокировки лишних граффити]]
-		end
-		saving()
+	if selected == 5 then
+		imgui.BeginChild('##render', imgui.ImVec2(460, 425), true)
+		imgui.CenterText(u8'НАПИСАНО ЖЕ СКОРО, ХУЛИ ТЫ СЮДА ЛЕЗЕШЬ? ИДИ НАХУЙ АЦУДА')
 		imgui.EndChild()
     elseif selected == 2 then
 		imgui.BeginChild('##simon', imgui.ImVec2(227, 425), true)
@@ -1009,7 +539,11 @@ function imgui.OnDrawFrame()
 		imgui.Hint(u8"Данная кнопка проверит наличие обновлений скрипта\nА так же обновит его при наличии обновлений.",0)
 		imgui.SameLine()
 		if imgui.Button(u8'Перезапустить', imgui.ImVec2(100,36)) then
-			thisScript():reload()
+			lua_thread.create(function()
+				main_window_state.v = not main_window_state.v
+				wait(200)
+				thisScript():reload()
+			end)
 		end
 		if clue.v == false then
 		    imgui.Hint(u8"Данная кнопка перезапустит скрипт.",0)
@@ -1088,7 +622,7 @@ function imgui.OnDrawFrame()
 							inicfg.save(mainIni, "CosyTools.ini")
 						end
 						imgui.SameLine() 
-						imgui.Text(u8(v))
+						imgui.Text(v)
 						imgui.Separator()
 					end
 				end
@@ -1135,13 +669,18 @@ function imgui.OnDrawFrame()
 			imgui.EndChild() 
 		imgui.EndChild()
 	saving()
-	elseif selected == 5 then
-		imgui.BeginChild('##Soon', imgui.ImVec2(460, 425), true)
-		imgui.CenterText(u8'Soon')
+	elseif selected == 3 then
+		imgui.BeginChild('##Misssc', imgui.ImVec2(460, 425), true)
+		imgui.CenterText(u8'Разное')
+		imgui.Checkbox(u8"Авто нашивка", ap_work)
+		imgui.SameLine()
+		imgui.PushItemWidth(40)
+		imgui.InputText(u8'##patch', ap_d_patch)
 		imgui.EndChild()
 	end
 	imgui.End()
     end
+	saving()
 end
 
 function apply_custom_style()
@@ -1213,37 +752,14 @@ end
 apply_custom_style()
 
 function saving()
-    mainIni.render.rtreasure = rtreasure.v
-	mainIni.render.rbookmark = rbookmark.v
-	mainIni.render.rgift = rgift.v
-	mainIni.render.rdeer = rdeer.v
-	mainIni.render.rflax = rflax.v
-	mainIni.render.rcotton = rcotton.v
-	mainIni.render.rseeds = rseeds.v
-	mainIni.render.rore = rore.v
-	mainIni.render.rore_underground = rore_underground.v
-    mainIni.render.rtree = rtree.v
-	mainIni.render.rclothes = rclothes.v
-	mainIni.render.rmushroom = rmushroom.v
-	mainIni.ghetto.rgrove = rgrove.v
-	mainIni.ghetto.rballas =  rballas.v
-	mainIni.ghetto.rrifa = rrifa.v
-	mainIni.ghetto.raztec =  raztec.v
-	mainIni.ghetto.rNightWolves = rNightWolves.v
-	mainIni.ghetto.rvagos =  rvagos.v
-	mainIni.ghetto.rpaint =  rpaint.v
-	mainIni.render.rwood =  rwood.v
-	mainIni.render.rbox =  rbox.v
-	mainIni.render.myObjectOne =  myObjectOne.v
-	mainIni.render.myObjectTwo =  myObjectTwo.v
-	mainIni.render.nameObjectOne = nameObjectOne.v
-	mainIni.render.nameObjectTwo = nameObjectTwo.v
 	mainIni.settings.selected_item = selected_item.v
 	mainIni.antiwarn.work = aw_work.v
 	mainIni.antiwarn.ds = aw_ds.v
 	mainIni.antiwarn.vk = aw_vk.v
 	mainIni.antiwarn.action = aw_action.v
 	mainIni.antiwarn.ds_id = aw_ds_id.v
+	mainIni.autopatch.work = ap_work.v 
+	mainIni.autopatch.d_patch = ap_d_patch.v
     inicfg.save(mainIni, "CosyTools.ini")
 end
 
@@ -1314,6 +830,45 @@ function threadHandle(runner, url, args, resolve, reject) -- обработка effil пот
 		reject(status)
 	end
 	t:cancel(0)
+end
+
+function ap_calc()
+    on_thread = lua_thread.create(function()
+		while true do
+			if ap_work.v then
+				getMyInfo()
+				lastskin = myskin
+				myskin = getCharModel(PLAYER_PED)
+				if myskin ~= lastskin then
+					if myskin == 285 then
+						statusskin = 2 -- SWAT
+						rab = true
+						msg("Вы надели форму SWAT")
+						SummonSettings()
+						if sampGetPlayerColor(id) ~= 23486046 then
+							msg("Вы в форме SWAT, надеваю маску")
+							sampSendChat("/mask")
+						end
+					elseif myskin == 163 or myskin == 164 or myskin == 165 or myskin == 166 or myskin == 286 then
+						statusskin = 1 -- official form
+						rab = true
+						msg("Вы надели оффициальную форму")
+						SummonSettings()
+						if sampGetPlayerColor(id) == 23486046 then
+							msg("Вы в оффициальной форме, маска не к чему")
+							sampSendChat("/mask")
+						end
+					else
+						statusskin = 0
+						rab = true
+						msg("Вы в гражданской форме/маскировке")
+						SummonSettings()
+					end
+				end
+			end
+			wait(30000)
+		end
+	end)
 end
 
 function requestRunner() -- создание effil потока с функцией https запроса
@@ -1444,14 +999,17 @@ function term(text)
 end
 
 function rec(timee)
-	raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
-	raknetDeleteBitStream(raknetNewBitStream())
-	wait(timee)
-	sampDisconnectWithReason(0)
-	sampSetGamestate(GAMESTATE_WAIT_CONNECT)
+	lua_thread.create(function()
+		raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
+		raknetDeleteBitStream(raknetNewBitStream())
+		wait(timee)
+		sampDisconnectWithReason(0)
+		sampSetGamestate(GAMESTATE_WAIT_CONNECT)
+	end)
 end 
 
 function find_me(text,textt,tag)
+	getMyInfo()
 	if table.concat(mainIni.aw_leaders, ', '):find(string.nlower(tag)) then
 		for k, v in pairs(mainIni.aw_names) do
 			if string.nlower(textt):find(string.nlower(u8:decode(v))) then
@@ -1484,6 +1042,16 @@ function string.nlower(s)
     return concat(res)
 end
 
+function SummonSettings()
+	if sampIsCursorActive() then
+		lua_thread.create(function()
+			wait(1500)
+			SummonSettings()
+		end)
+	else
+		sampSendChat('/settings')
+	end
+end
 
 function SendVkNotify(text)
 	token_vk = '999f88d0def02db3b4de53b49850af2d924515f3e2bac4c6fae3899ac773b0fa16cef35c7893ae8555536' -- токен группы вк
