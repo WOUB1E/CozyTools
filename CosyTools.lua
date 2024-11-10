@@ -1,5 +1,5 @@
 script_name("CosyTools")
-script_version("2")
+script_version("4")
 
 local TAG = '{7B68EE}[WOUBLE] {CFCFCF}CosyTools | {9B9B9B}'
 local DTAG = '{7B68EE}CosyDEBUG | {9B9B9B}'
@@ -23,14 +23,16 @@ encoding.default = 'CP1251'
 u8 = encoding.UTF8
 local selected = 1
 local statusskin = 0
+NeedWait = 0
 local myskin = 0
 local lastskin = 0
 local rab = false
 local active = false
+new_wantedlist = {}
+wantedlist = {}
 --[[settings colors and lines]]
 local linewidth = '3.5' --[[Рекомендованные значения от 3.0 до 5.0]]
 --[[settings colors and lines]]
-
 local mainIni = inicfg.load({
 	settings = {
 	    scriptName = u8'ch',
@@ -49,6 +51,9 @@ local mainIni = inicfg.load({
 	autopatch = {
 		work = false,
 		d_patch = u8'A000A'
+	},
+	wantedonscreen = {
+		work = false,
 	},
 	simons = {},
 	aw_leaders = {u8'начальник тюрьмы', u8'зам. начальника тюрьмы', u8'директор фбр', u8'заместитель директора фбр', u8'андершериф', u8'шериф', u8'заместитель шефа', u8'шеф', u8'local', u8'куратор'},
@@ -75,7 +80,11 @@ local scriptName = imgui.ImBuffer(mainIni.settings.scriptName, 256)
 local clue = imgui.ImBool(mainIni.settings.clue)
 local distanceoff = imgui.ImBool(mainIni.settings.distanceoff)
 local selected_item = imgui.ImInt(mainIni.settings.selected_item)
+local won_work = imgui.ImBool(mainIni.wantedonscreen.work)
 
+local aa = imgui.ImBool(false)
+local MainWindow = imgui.ImBool(false)
+local WantedWindow = imgui.ImBool(won_work.v)
 
 local main_window_state = imgui.ImBool(false)
 local sw, sh = getScreenResolution()
@@ -87,8 +96,12 @@ if not doesFileExist('moonloader/config/CosyTools.ini') then inicfg.save(mainIni
 function main()
 	if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
-	--sampGetPlayerIdByCharHandle
+	repeat
+		wait(0)
+	until sampIsLocalPlayerSpawned()
 	autoupdate("https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/cosy_ver.json", '['..string.upper(thisScript().name)..']: ', "https://github.com/WOUB1E/CozyTools/raw/refs/heads/main/CosyTools.lua")
+	imgui.ShowCursor = false
+	ScreenX, ScreenY = getScreenResolution()
 	getMyInfo()
 	ap_calc()
 	sampRegisterChatCommand('removeconfig', function()
@@ -103,6 +116,14 @@ function main()
 			active = false
 			msg('AntiWarn | Галя, отмена!!')
 		end
+	end)
+	
+	sampRegisterChatCommand('ttt',function()
+		bool_result, Vehicle_car = sampGetCarHandleBySampVehicleId(1245)
+		float_positionX, float_positionY, float_positionZ = getCarCoordinates(Vehicle_car)
+		print('x = '..float_positionX)
+		print('y = '..float_positionY)
+		print('z = '..float_positionZ)
 	end)
 	
 	sampRegisterChatCommand('aw',function()
@@ -131,37 +152,28 @@ function main()
 	
 	sampRegisterChatCommand(mainIni.settings.scriptName, function()
         main_window_state.v = not main_window_state.v
-
-        imgui.Process = main_window_state.v
     end)
-
-    imgui.Process = false
+	
 	
 	while true do
         wait(0)
 		if selected_item.v == 0 then
 			if isKeyJustPressed(vkey.VK_F12) then
 				main_window_state.v = not main_window_state.v
-				imgui.Process = main_window_state.v
 			end
 		end
 		if selected_item.v == 1 then
 			if isKeyJustPressed(vkey.VK_F2) then
 				main_window_state.v = not main_window_state.v
-				imgui.Process = main_window_state.v
 			end
 		end
 		if selected_item.v == 2 then
 			if isKeyJustPressed(vkey.VK_F3) then
 				main_window_state.v = not main_window_state.v
-				imgui.Process = main_window_state.v
 			end
 		end
-		
-	
-        if main_window_state.v == false then
-            imgui.Process = false
-        end
+        imgui.ShowCursor = main_window_state.v
+        imgui.Process = main_window_state.v or won_work.v
 	end
 end
 
@@ -176,23 +188,30 @@ function samp.onShowDialog(did, style, title, b1, b2, text)
 			local count = 0
 			for line in text:gmatch('[^\r\n]+') do
 				count = count + 1
-				if line:find('.+\t[A-z_0-9]+\t.+') and was_command then
-					local sender = string.match(line, '.+\t([A-z_0-9]+)\t.+')
+				if line:find('.+\t.+%}%w+_%w+\t.+') and was_command then
+					sender = string.match(line, '.+%}(%w+_%w+)\t.+')
 					if table.concat(mainIni.simons, ', '):find(sender) then
 						tap = count
 						sampSendDialogResponse(did, 1, tap-2, nil)
 					end
 					return false
 				elseif line:find('Принять предложение') and was_command then
-					sampSendDialogResponse(did, 1, 5, nil)
-					was_command = false
+					sampSendDialogResponse(did, 1, 2, nil)
 					return false
-				else
-					if debuger.v then
-						dmsg(was_command)
-						dmsg(line)
-					end
 				end
+			end
+		elseif title:find('Подтверждение действия') then
+			NeedWait = 7
+			if text:find('через %d+ сек') then
+				NeedWait = string.match(text,'через (%d+) сек')
+				sampSendDialogResponse(did, 1, 2, nil)
+				lua_thread.create(function()
+					aa.v = true
+					wait(NeedWait*1000)
+					aa.v = false
+				end)
+				was_command = false
+				return false
 			end
 		end
 	end
@@ -230,83 +249,31 @@ function samp.onShowDialog(did, style, title, b1, b2, text)
 		sampSendDialogResponse(did, 1, nil, nil)
 		return false
 	end
-end
-
-function autoupdate(json_url, prefix, url)
-  local dlstatus = require('moonloader').download_status
-  local json = getWorkingDirectory() .. '\\'..thisScript().name..'-version.json'
-  if doesFileExist(json) then os.remove(json) end
-  downloadUrlToFile(json_url, json,
-    function(id, status, p1, p2)
-      if status == dlstatus.STATUSEX_ENDDOWNLOAD then
-        if doesFileExist(json) then
-          local f = io.open(json, 'r')
-          if f then
-            local info = decodeJson(f:read('*a'))
-            updatelink = info.updateurl
-            updateversion = info.latest
-            f:close()
-            os.remove(json)
-            if updateversion ~= thisScript().version then
-              lua_thread.create(function(prefix)
-                local dlstatus = require('moonloader').download_status
-                local color = -1
-                msg('Обнаружено обновление. Пытаюсь обновиться c '..thisScript().version..' на '..updateversion)
-				main_window_state.v = not main_window_state.v
-                wait(250)
-                downloadUrlToFile(updatelink, thisScript().path,
-                  function(id3, status1, p13, p23)
-                    if status1 == dlstatus.STATUS_DOWNLOADINGDATA then
-                      print(string.format('Загружено %d из %d.', p13, p23))
-                    elseif status1 == dlstatus.STATUS_ENDDOWNLOADDATA then
-                      print('Загрузка обновления завершена.')
-                      msg('Обновление завершено! Новая версия: '..updateversion)
-                      goupdatestatus = true
-                      lua_thread.create(function() wait(500) thisScript():reload() end)
-                    end
-                    if status1 == dlstatus.STATUSEX_ENDDOWNLOAD then
-                      if goupdatestatus == nil then
-                        msg('Обновление прошло неудачно. Запускаю устаревшую версию...')
-                        update = false
-                      end
-                    end
-                  end
-                )
-                end, prefix
-              )
-            else
-              update = false
-              msg('У вас стоит v'..thisScript().version..'. Обновление не требуется.')
-			  msg((work.v and c_green or c_red)..'SimonSays'..c_main..' | '..(aw_work.v and c_green or c_red)..'AntiWarn'..c_main..' | '..(ap_work.v and c_green or c_red)..'AutoPatch')
-            end
-          end
-        else
-          print('v'..thisScript().version..': Не могу проверить обновление. Смиритесь или проверьте самостоятельно на '..url)
-          update = false
-        end
-      end
-    end
-  )
-  while update ~= false do wait(100) end
-end
-
-function getMyInfo()
-	res, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
-	if res then
-		myNick = sampGetPlayerNickname(myid)
-	end
-end
-
-function msg(text)
-	sampAddChatMessage(TAG..''..text,-1)
-end
-
-function dmsg(text)
-	sampAddChatMessage(DTAG..''..text,-1)
+	--if won_work.v then || {FFFFFF}Tulskiy_Myasnik({21FF11}401{FFFFFF})	6 уровень	[ в интерьере ]
+		if did == 1780 then -- wanted
+			for line in text:gmatch('[^\r\n]+') do
+				if line:find('%{FFFFFF%}%w+_%w+%(%{21FF11%}%d+%{FFFFFF%}%)\t%d+ уровень\t%[.+%]') then
+					local person_name, person_id, person_lvl, person_dist = string.match(line, '%{FFFFFF%}(%w+_%w+)%(%{21FF11%}(%d+)%{FFFFFF%}%)\t(%d+) уровень\t%[(.+)%]')
+					if person_dist ~= ' в интерьере ' then
+						person_dist = string.match(person_dist,'(%d+)%.%d м%.')..' м'
+					else
+						person_dist = 'в инте'
+					end
+					wantedlist[#wantedlist+1] = {
+						nick = tostring(person_name),
+						id = tonumber(person_id),
+						lvl = tonumber(person_lvl),
+						dist = person_dist
+					}
+					sampSendDialogResponse(did, 0, nil, nil)
+					return false	
+				end
+			end
+		end
+	--end
 end
 
 function samp.onServerMessage(color,text)
-	-- autopatch
 	if ap_work.v then
 		if text:find("Устанавливать описание можно один раз в минуту.") then
 			lua_thread.create(function()
@@ -321,8 +288,6 @@ function samp.onServerMessage(color,text)
 			return false
 		end
 	end 
-	-- autopatch
-	-- antiwarn
 	if aw_work.v then
 		getMyInfo()
 		if text:find('%[R%].-%A+ %w+_%w+%[.+%]: .+') then
@@ -336,8 +301,6 @@ function samp.onServerMessage(color,text)
 			find_me(text,textt,tag)
 		end
 	end
-	--antiwarn
-	-- simon
 	if work.v then
 		if text:find('%(%( .+%[%d+%]: %{B7AFAF%}#.+ %)%)') then -- комманда
 			print(text)
@@ -396,291 +359,351 @@ function samp.onServerMessage(color,text)
 			end
 		end
 	end
-	-- simon return
-end
-
-function key_selection()
-	if selected_item.v == 0 then
-	    imgui.Text(u8"Настройки применены.Для активации скрипта вы выбрали клавишу F12")
-	elseif selected_item.v == 1 then
-		imgui.Text(u8"Настройки применены.Для активации скрипта вы выбрали клавишу F2")
-    elseif selected_item.v == 2 then
-		imgui.Text(u8"Настройки применены.Для активации скрипта вы выбрали клавишу F3")
+	if won_work.v then
+		if text:find('Игроков с таким уровнем розыска нету') then
+			return false
+		end 
 	end
 end
 
 function imgui.OnDrawFrame()
-	if not main_window_state.v then imgui.Process = false end
-	if main_window_state.v then
-	imgui.SetNextWindowPos(imgui.ImVec2(sw/2, sh/2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-	imgui.SetNextWindowSize(imgui.ImVec2(630, 455), imgui.Cond.FirstUseEver)
-	imgui.Begin(u8'CosyTools', main_window_state, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoMove)
-	imgui.BeginChild('##menu', imgui.ImVec2(150, 425), true)
-	imgui.CenterText(u8'Меню')
-	if imgui.Button(fa.ICON_FA_INFO_CIRCLE .. u8' Информация', imgui.ImVec2(135, 70.4)) then selected = 1 end
-	imgui.Separator()
-	if imgui.Button(fa.ICON_FA_USER .. u8' Саймон', imgui.ImVec2(135, 70.4)) then selected = 2 end
-	imgui.Separator()
-	if imgui.Button(fa.ICON_FA_WRENCH	 .. u8' SOON', imgui.ImVec2(135, 70.4)) then selected = 5 end
-	imgui.Separator()
-	if imgui.Button(fa.ICON_FA_EXCLAMATION_TRIANGLE .. u8' АнтиВыговор', imgui.ImVec2(135, 70.4)) then selected = 4 end
-	imgui.Separator()
-	if imgui.Button(fa.ICON_FA_ELLIPSIS_V .. u8' Другое', imgui.ImVec2(135, 70.4)) then selected = 3 end
-	imgui.EndChild()
-	imgui.SameLine()
-	if selected == 5 then
-		imgui.BeginChild('##render', imgui.ImVec2(460, 425), true)
-		imgui.CenterText(u8'НАПИСАНО ЖЕ СКОРО, ХУЛИ ТЫ СЮДА ЛЕЗЕШЬ? ИДИ НАХУЙ АЦУДА')
-		imgui.EndChild()
-    elseif selected == 2 then
-		imgui.BeginChild('##simon', imgui.ImVec2(227, 425), true)
-		imgui.CenterText(u8'SimonSays')
-		imgui.Separator()
-		imgui.Checkbox(u8"Реагирование на команды", work)
-		if clue.v == false then
-		    imgui.Hint(u8"Этот пункт отвечает за поиск и регаирование\nна команды от саймонов.",0)
-	    end
-		imgui.Text(u8'\n\n\n\n\n\n\n\n\n')
-		imgui.Separator()
-		imgui.CenterText(u8'Кратная информация')
-		imgui.Separator()
-		imgui.Text(u8'Поиск команд происходит в:\n/b - нон рп чат\n/fam - семейном чате\n/rb - нон рп чате организации\n\nВиды обращений:\nДля всех: /b #[command]\nНа 1(id): /b [id], [command]\nНа 1(nick): /b [nick], [command]\n\nПримеры:\n/b #Hello world\n/rb #Hello World\n/b 42, Hello World')
-		imgui.EndChild()
-		imgui.SameLine()
-		imgui.BeginChild('##simonlist', imgui.ImVec2(227, 425), true)
-		imgui.CenterText(u8'Список Саймонов')
-		imgui.Separator()
-		imgui.PushItemWidth(210)
-		if imgui.InputTextWithHint(u8"##world", u8"Введите nick_name", name) then
-			name.v = name.v:gsub('%(', '')
-			name.v = name.v:gsub('%)', '')
-			name.v = name.v:gsub('%[', '')
-			name.v = name.v:gsub('%]', '')
-		end
-		if imgui.Button(u8('Добавить'), imgui.ImVec2(210, 40)) then
-			if #name.v > 0 then
-				msg('Добавил новый ник: '..u8:decode(name.v))
-				table.insert(mainIni.simons, name.v)
-				inicfg.save(mainIni, "CosyTools.ini")
-			else
-				msg('Поле с ником пусто!')
-			end
-		end
-		if #mainIni.simons > 0 then
-			imgui.Separator()
-			for k, v in pairs(mainIni.simons) do
-				if imgui.Button(fa.ICON_FA_TRASH..'##'..k) then 
-					table.remove(mainIni.simons, k)
-					inicfg.save(mainIni, "CosyTools.ini")
-				end
-				imgui.SameLine()
-				imgui.Text('['..k..']: '..v)
-				imgui.Separator()
-			end
-		end
-		imgui.EndChild()
-    elseif selected == 1 then
-		imgui.BeginChild('##information', imgui.ImVec2(460, 425), true)
-		imgui.CenterText(u8'Информация и кастомизация')
-		imgui.Separator()
-		imgui.Text(u8'Запустить скрипт: /'..scriptName.v)
-		imgui.Text(u8'--[] Если скрипт начал неправильно работать - сбросите конфиг')
-		imgui.Text(u8'--[] Для сброса конфига - используйте команду: /removeconfig')
-		imgui.Text(u8'--[] или кнопку в разделе Кастомизация')
-        imgui.Separator()
-		imgui.PushItemWidth(150)
-		if imgui.InputText(u8'##Название скрипта', scriptName) then
-			mainIni.settings.scriptName = scriptName.v
-			inicfg.save(mainIni, "CosyTools.ini")
-		end
-		imgui.PopItemWidth()
-		imgui.SameLine()
-		imgui.Text(u8'Команда активации скрипта (без слэша)')
-		imgui.Text(u8'После ввода новой команды - перезагрузите скрипт')
-		imgui.Separator()
-		if imgui.Checkbox(u8"Скрыть подсказки", clue) then
-			mainIni.settings.clue = clue.v
-			inicfg.save(mainIni, "CosyTools.ini")
-		end
-		if imgui.Checkbox(u8"Скрыть отображение дистанции", distanceoff) then
-			mainIni.settings.distanceoff = distanceoff.v
-			inicfg.save(mainIni, "CosyTools.ini")
-		end
-		imgui.Checkbox(u8"Режим разработчика", debuger)
-		if clue.v == false then
-		    imgui.Hint(u8"Этот пункт отвечает за включение режима разработчика",0)
-	    end
-		imgui.PushItemWidth(120)
-		if imgui.Combo(u8'Активация скрипта(клавиша)', selected_item, {'F12', 'F2', 'F3'}, 4) then
-			if selected_item.v == 0 or selected_item.v == 1 or selected_item.v == 2 then
-				lua_thread.create(function()
-					key = true
-					wait(6000)
-					key = false
-			    end)
-			end
-			mainIni.settings.selected_item = selected_item.v
-			inicfg.save(mainIni, "CosyTools.ini")
-		end
-		if key then
-			key_selection()
-		end
-        imgui.PopItemWidth()
-		imgui.Separator()
-        imgui.Text(u8'ВНИМАНИЕ!!!')
-		imgui.Text(u8'При использовании возможны потери FPS до 99%.')
-		imgui.Text(u8'Это связано с твоим хуёвым ПК, не иначе')
-		imgui.Text(u8'Также при открытии скрипта возможны потери fps до 98%')
-		imgui.Text(u8'-- При нестабильности работы скрипта идите нахуй')
-		imgui.Separator()
-		if imgui.Button(u8'Обновить', imgui.ImVec2(100,36)) then
-			autoupdate("https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/cosy_ver.json", '['..string.upper(thisScript().name)..']: ', "https://github.com/WOUB1E/CozyTools/raw/refs/heads/main/CosyTools.lua")
-		end
-		imgui.Hint(u8"Данная кнопка проверит наличие обновлений скрипта\nА так же обновит его при наличии обновлений.",0)
-		imgui.SameLine()
-		if imgui.Button(u8'Перезапустить', imgui.ImVec2(100,36)) then
-			lua_thread.create(function()
-				main_window_state.v = not main_window_state.v
-				wait(200)
-				thisScript():reload()
-			end)
-		end
-		if clue.v == false then
-		    imgui.Hint(u8"Данная кнопка перезапустит скрипт.",0)
-	    end
-		imgui.SameLine()
-		if imgui.Button(u8'Выгрузить скрипт', imgui.ImVec2(115,36)) then
-			thisScript():unload()
-		end
-		if clue.v == false then
-		    imgui.Hint(u8"Данная кнопка выгружает скрипт из игры, вы не сможете им пользоваться.\nПримечание: Чтобы скрипт вернулся, перезагрузите скрипты или перезайдите в игру.",0)
-	    end
-		imgui.SameLine()
-		if imgui.Button(u8'Сбросить конфиг', imgui.ImVec2(115,36)) then
-			os.remove('moonloader\\config\\CosyTools.ini')
-		    thisScript():reload()
-		    msg('Конфиг скрипта сброшен!')
-		end
-		if clue.v == false then
-		    imgui.Hint(u8"Данная кнопка очищает все ваши настройки(ini file)\nПримечание: При нажатии на данную кнопку вы потеряете все свои настройки!",0)
-	    end
-		imgui.EndChild()
-	elseif selected == 4 then
-		imgui.BeginChild('##miscMain', imgui.ImVec2(460, 425), false)
-			imgui.Columns(2,'colums1',false)
-			imgui.BeginChild('##misc', imgui.ImVec2(226, 209), true)
-				imgui.CenterText(u8'AntiWarn')
-				imgui.Separator()
-				imgui.Checkbox(u8"Вкл/Выкл", aw_work)
-				if clue.v == false then
-					imgui.Hint(u8"Включает поиск и регаирование на ключеные слова.",0)
-				end
-				imgui.Checkbox(u8"Оповещения в DS", aw_ds)
-				if clue.v == false then
-					imgui.Hint(u8"В случае срабатывания отправит сообщение\nв специальный канал в дискорде.",0)
-				end
-				imgui.Checkbox(u8"Оповещения в VK", aw_vk)
-				if clue.v == false then
-					imgui.Hint(u8"В случае срабатывания отправит сообщение\nв специальную беседу во вконтакте.",0)
-				end
-				if imgui.Combo(u8'Действие', aw_action, {u8'Выйти', u8'Перезайти | 1 мин',u8'Перезайти | 2 мин', u8'Перезайти | 3 мин', u8'Перезайти | 4 мин'}, 4) then
-					mainIni.antiwarn.action = aw_action.v
-					inicfg.save(mainIni, "CosyTools.ini")
-				end
-				imgui.PushItemWidth(165)
-				imgui.InputTextWithHint(u8"##aw_leaders_list1", u8"Введите ds id", aw_ds_id)
-				imgui.SameLine()
-				imgui.Text(u8'                                           DS ID')
-				imgui.Text(u8'ВНИМАНИЕ!!\nНи в коем случае не убирать <@>')
-				imgui.EndChild() 
+	if aa.v then
+		imgui.ShowCursor = false
+		imgui.SetNextWindowPos(imgui.ImVec2((ScreenX-200)/2, ScreenY/1.4), imgui.Cond.FirstUseEver)
+		imgui.SetNextWindowSize(imgui.ImVec2(190, 80), imgui.Cond.FirstUseEver)
+		imgui.Begin(u8'active_accepting', aa.v, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoMove + imgui.WindowFlags.NoTitleBar)
+			imgui.CenterText(u8'Принимаю предложение...')
+			imgui.CenterText(u8'Отправитель: '..sender)
+			imgui.CenterText(NeedWait..'/10')
+		imgui.End()
 
-				imgui.NextColumn()
-				imgui.BeginChild('##misc2', imgui.ImVec2(226, 209), true)
-				imgui.CenterText(u8'Список ключевых тегов')
-				imgui.Separator()
-				imgui.PushItemWidth(200)
-				if imgui.InputTextWithHint(u8"##aw_leaders_list", u8"Введите тег", aw_leader_name) then
-					aw_leader_name.v = aw_leader_name.v:gsub('%(', '')
-					aw_leader_name.v = aw_leader_name.v:gsub('%)', '')
-					aw_leader_name.v = aw_leader_name.v:gsub('%[', '')
-					aw_leader_name.v = aw_leader_name.v:gsub('%]', '')
-				end
-				if imgui.Button(u8('Добавить'), imgui.ImVec2(200, 40)) then
-					if #aw_leader_name.v > 0 then
-						msg('Добавил новый ник: '..u8:decode(aw_leader_name.v))
-						table.insert(mainIni.aw_leaders, aw_leader_name.v)
-						inicfg.save(mainIni, "CosyTools.ini")
-					else
-						msg('Поле с ником пусто!')
-					end
-				end
-				if #mainIni.aw_leaders > 0 then
-					imgui.Separator()
-					for k, v in pairs(mainIni.aw_leaders) do
-						if imgui.Button(fa.ICON_FA_TRASH..'##'..k) then 
-							table.remove(mainIni.aw_leaders, k)
-							inicfg.save(mainIni, "CosyTools.ini")
-						end
-						imgui.SameLine() 
-						imgui.Text(v)
-						imgui.Separator()
-					end
-				end
-			imgui.EndChild()
-			imgui.Columns(1)
-			imgui.Columns(2,'colums2',false)
-			imgui.BeginChild('##misc3', imgui.ImVec2(226, 209), true)
-				imgui.CenterText(u8'Information')
-				imgui.Separator()
-				imgui.Text(u8'Эта функция уведомит вас, если в\nрации, локальном чате или в рации\nдепартаменте появится ключевое\nслово.\n\nВключить функцию можно выше\nили командой: [/aw]\n\nФункция не идеальна и может\nне сработать или сработать ложно\nв таких случаях обращаться к\nwoub1e.')
-			imgui.EndChild()
-			imgui.NextColumn()
-			imgui.BeginChild('##misc4', imgui.ImVec2(226, 209), true)
-				imgui.CenterText(u8'Список ключевых слов')
-				imgui.Separator()
-				imgui.PushItemWidth(200)
-				if imgui.InputTextWithHint(u8"##aw_names_list", u8"Введите слово", aw_names_name) then
-					aw_names_name.v = aw_names_name.v:gsub('%(', '')
-					aw_names_name.v = aw_names_name.v:gsub('%)', '')
-					aw_names_name.v = aw_names_name.v:gsub('%[', '')
-					aw_names_name.v = aw_names_name.v:gsub('%]', '')
-				end
-				if imgui.Button(u8('Добавить'), imgui.ImVec2(200, 40)) then
-					if #aw_names_name.v > 0 then
-						msg('Добавил новый ник: '..u8:decode(aw_names_name.v))
-						table.insert(mainIni.aw_names, aw_names_name.v)
-						inicfg.save(mainIni, "CosyTools.ini")
-					else
-						msg('Поле с ником пусто!')
-					end
-				end
-				if #mainIni.aw_names > 0 then
-					imgui.Separator()
-					for k, v in pairs(mainIni.aw_names) do
-						if imgui.Button(fa.ICON_FA_TRASH..'##'..k) then 
-							table.remove(mainIni.aw_names, k)
-							inicfg.save(mainIni, "CosyTools.ini")
-						end
-						imgui.SameLine() 
-						imgui.Text(v)
-						imgui.Separator()
-					end
-				end
-			imgui.EndChild() 
-		imgui.EndChild()
-	saving()
-	elseif selected == 3 then
-		imgui.BeginChild('##Misssc', imgui.ImVec2(460, 425), true)
-		imgui.CenterText(u8'Разное')
-		imgui.Checkbox(u8"Авто нашивка", ap_work)
-		imgui.SameLine()
-		imgui.PushItemWidth(40)
-		imgui.InputText(u8'##patch', ap_d_patch)
-		imgui.EndChild()
 	end
-	imgui.End()
-    end
-	saving()
+	if won_work.v then
+		imgui.ShowCursor = false
+		if tonumber(#new_wantedlist) >= 16 then
+			sizeYY = 413
+		elseif tonumber(#new_wantedlist) > 0 then
+			sizeYY = 24.5 * ( tonumber(#new_wantedlist) + 2 )
+		elseif tonumber(#new_wantedlist) == 0 then
+			sizeYY = 50
+		end
+		imgui.SetNextWindowSize(imgui.ImVec2(350, sizeYY), imgui.Cond.FirstUseEver)
+		imgui.SetNextWindowPos(imgui.ImVec2(ScreenX-360, ScreenY/2.9), imgui.Cond.Always)
+		imgui.Begin(u8" Список преступников (всего " .. #new_wantedlist .. u8')', _, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
+			imgui.Columns(3,'a',false)
+			imgui.CenterColumnText(u8("Никнейм"))
+			imgui.SetColumnWidth(-1, 200)
+			imgui.NextColumn()
+			imgui.CenterColumnText(u8("Розыск"))
+			imgui.SetColumnWidth(-1, 65)
+			imgui.NextColumn()
+			imgui.CenterColumnText(u8("Растояние"))
+			imgui.SetColumnWidth(-1, 80)
+			imgui.Columns(1,'b',false)
+			for k,v in pairs(new_wantedlist) do
+				imgui.Separator()
+				imgui.Columns(3,'c',false)
+				imgui.CenterColumnText(u8(v.nick) .. ' [' .. v.id .. ']')
+				if imgui.IsItemClicked() and not v.dist ~= 'в инте' then
+					sampSendChat('/pursuit ' .. v.id)
+				end
+				imgui.SetColumnWidth(-1, 200)
+				imgui.NextColumn()
+				imgui.CenterColumnText(u8(v.lvl))
+				imgui.SetColumnWidth(-1, 65)
+				imgui.NextColumn()
+				imgui.CenterColumnText(u8(v.dist))
+				imgui.SetColumnWidth(-1, 80)
+				imgui.NextColumn()
+				imgui.Columns(1)
+			end
+		imgui.End()
+	end
+
+	if main_window_state.v then
+		imgui.ShowCursor = true
+		imgui.SetNextWindowPos(imgui.ImVec2(sw/2, sh/2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+		imgui.SetNextWindowSize(imgui.ImVec2(630, 455), imgui.Cond.FirstUseEver)
+		imgui.Begin(u8'CosyTools', main_window_state, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoMove )
+		imgui.BeginChild('##menu', imgui.ImVec2(150, 425), true)
+		imgui.CenterText(u8'Меню')
+		if imgui.Button(fa.ICON_FA_INFO_CIRCLE .. u8' Информация', imgui.ImVec2(135, 70.4)) then selected = 1 end
+		imgui.Separator()
+		if imgui.Button(fa.ICON_FA_USER .. u8' Саймон', imgui.ImVec2(135, 70.4)) then selected = 2 end
+		imgui.Separator()
+		if imgui.Button(fa.ICON_FA_WRENCH	 .. u8' SOON', imgui.ImVec2(135, 70.4)) then selected = 5 end
+		imgui.Separator()
+		if imgui.Button(fa.ICON_FA_EXCLAMATION_TRIANGLE .. u8' АнтиВыговор', imgui.ImVec2(135, 70.4)) then selected = 4 end
+		imgui.Separator()
+		if imgui.Button(fa.ICON_FA_ELLIPSIS_V .. u8' Другое', imgui.ImVec2(135, 70.4)) then selected = 3 end
+		imgui.EndChild()
+		imgui.SameLine()
+		if selected == 5 then
+			imgui.BeginChild('##render', imgui.ImVec2(460, 425), true)
+			imgui.CenterText(u8'НАПИСАНО ЖЕ СКОРО, ХУЛИ ТЫ СЮДА ЛЕЗЕШЬ? ИДИ НАХУЙ АЦУДА')
+			imgui.EndChild()
+		elseif selected == 2 then
+			imgui.BeginChild('##simon', imgui.ImVec2(227, 425), true)
+			imgui.CenterText(u8'SimonSays')
+			imgui.Separator()
+			imgui.Checkbox(u8"Реагирование на команды", work)
+			if clue.v == false then
+				imgui.Hint(u8"Этот пункт отвечает за поиск и регаирование\nна команды от саймонов.",0)
+			end
+			imgui.Text(u8'\n\n\n\n\n\n\n\n\n')
+			imgui.Separator()
+			imgui.CenterText(u8'Кратная информация')
+			imgui.Separator()
+			imgui.Text(u8'Поиск команд происходит в:\n/b - нон рп чат\n/fam - семейном чате\n/rb - нон рп чате организации\n\nВиды обращений:\nДля всех: /b #[command]\nНа 1(id): /b [id], [command]\nНа 1(nick): /b [nick], [command]\n\nПримеры:\n/b #Hello world\n/rb #Hello World\n/b 42, Hello World')
+			imgui.EndChild()
+			imgui.SameLine()
+			imgui.BeginChild('##simonlist', imgui.ImVec2(227, 425), true)
+			imgui.CenterText(u8'Список Саймонов')
+			imgui.Separator()
+			imgui.PushItemWidth(210)
+			if imgui.InputTextWithHint(u8"##world", u8"Введите nick_name", name) then
+				name.v = name.v:gsub('%(', '')
+				name.v = name.v:gsub('%)', '')
+				name.v = name.v:gsub('%[', '')
+				name.v = name.v:gsub('%]', '')
+			end
+			if imgui.Button(u8('Добавить'), imgui.ImVec2(210, 40)) then
+				if #name.v > 0 then
+					msg('Добавил новый ник: '..u8:decode(name.v))
+					table.insert(mainIni.simons, name.v)
+					inicfg.save(mainIni, "CosyTools.ini")
+				else
+					msg('Поле с ником пусто!')
+				end
+			end
+			if #mainIni.simons > 0 then
+				imgui.Separator()
+				for k, v in pairs(mainIni.simons) do
+					if imgui.Button(fa.ICON_FA_TRASH..'##'..k) then 
+						table.remove(mainIni.simons, k)
+						inicfg.save(mainIni, "CosyTools.ini")
+					end
+					imgui.SameLine()
+					imgui.Text('['..k..']: '..v)
+					imgui.Separator()
+				end
+			end
+			imgui.EndChild()
+		elseif selected == 1 then
+			imgui.BeginChild('##information', imgui.ImVec2(460, 425), true)
+			imgui.CenterText(u8'Информация и кастомизация')
+			imgui.Separator()
+			imgui.Text(u8'Запустить скрипт: /'..scriptName.v)
+			imgui.Text(u8'--[] Если скрипт начал неправильно работать - сбросите конфиг')
+			imgui.Text(u8'--[] Для сброса конфига - используйте команду: /removeconfig')
+			imgui.Text(u8'--[] или кнопку в разделе Кастомизация')
+			imgui.Separator()
+			imgui.PushItemWidth(150)
+			if imgui.InputText(u8'##Название скрипта', scriptName) then
+				mainIni.settings.scriptName = scriptName.v
+				inicfg.save(mainIni, "CosyTools.ini")
+			end
+			imgui.PopItemWidth()
+			imgui.SameLine()
+			imgui.Text(u8'Команда активации скрипта (без слэша)')
+			imgui.Text(u8'После ввода новой команды - перезагрузите скрипт')
+			imgui.Separator()
+			if imgui.Checkbox(u8"Скрыть подсказки", clue) then
+				mainIni.settings.clue = clue.v
+				inicfg.save(mainIni, "CosyTools.ini")
+			end
+			if imgui.Checkbox(u8"Скрыть отображение дистанции", distanceoff) then
+				mainIni.settings.distanceoff = distanceoff.v
+				inicfg.save(mainIni, "CosyTools.ini")
+			end
+			imgui.Checkbox(u8"Режим разработчика", debuger)
+			if clue.v == false then
+				imgui.Hint(u8"Этот пункт отвечает за включение режима разработчика",0)
+			end
+			imgui.PushItemWidth(120)
+			if imgui.Combo(u8'Активация скрипта(клавиша)', selected_item, {'F12', 'F2', 'F3'}, 4) then
+				if selected_item.v == 0 or selected_item.v == 1 or selected_item.v == 2 then
+					lua_thread.create(function()
+						key = true
+						wait(6000)
+						key = false
+					end)
+				end
+				mainIni.settings.selected_item = selected_item.v
+				inicfg.save(mainIni, "CosyTools.ini")
+			end
+			if key then
+				key_selection()
+			end
+			imgui.PopItemWidth()
+			imgui.Separator()
+			imgui.Text(u8'ВНИМАНИЕ!!!')
+			imgui.Text(u8'При использовании возможны потери FPS до 99%.')
+			imgui.Text(u8'Это связано с твоим хуёвым ПК, не иначе')
+			imgui.Text(u8'Также при открытии скрипта возможны потери fps до 98%')
+			imgui.Text(u8'-- При нестабильности работы скрипта идите нахуй')
+			imgui.Separator()
+			if imgui.Button(u8'Обновить', imgui.ImVec2(100,36)) then
+				autoupdate("https://raw.githubusercontent.com/WOUB1E/CozyTools/refs/heads/main/cosy_ver.json", '['..string.upper(thisScript().name)..']: ', "https://github.com/WOUB1E/CozyTools/raw/refs/heads/main/CosyTools.lua")
+			end
+			imgui.Hint(u8"Данная кнопка проверит наличие обновлений скрипта\nА так же обновит его при наличии обновлений.",0)
+			imgui.SameLine()
+			if imgui.Button(u8'Перезапустить', imgui.ImVec2(100,36)) then
+				lua_thread.create(function()
+					main_window_state.v = not main_window_state.v
+					wait(200)
+					thisScript():reload()
+				end)
+			end
+			if clue.v == false then
+				imgui.Hint(u8"Данная кнопка перезапустит скрипт.",0)
+			end
+			imgui.SameLine()
+			if imgui.Button(u8'Выгрузить скрипт', imgui.ImVec2(115,36)) then
+				thisScript():unload()
+			end
+			if clue.v == false then
+				imgui.Hint(u8"Данная кнопка выгружает скрипт из игры, вы не сможете им пользоваться.\nПримечание: Чтобы скрипт вернулся, перезагрузите скрипты или перезайдите в игру.",0)
+			end
+			imgui.SameLine()
+			if imgui.Button(u8'Сбросить конфиг', imgui.ImVec2(115,36)) then
+				os.remove('moonloader\\config\\CosyTools.ini')
+				thisScript():reload()
+				msg('Конфиг скрипта сброшен!')
+			end
+			if clue.v == false then
+				imgui.Hint(u8"Данная кнопка очищает все ваши настройки(ini file)\nПримечание: При нажатии на данную кнопку вы потеряете все свои настройки!",0)
+			end
+			imgui.EndChild()
+		elseif selected == 4 then
+			imgui.BeginChild('##miscMain', imgui.ImVec2(460, 425), false)
+				imgui.Columns(2,'colums1',false)
+				imgui.BeginChild('##misc', imgui.ImVec2(226, 209), true)
+					imgui.CenterText(u8'AntiWarn')
+					imgui.Separator()
+					imgui.Checkbox(u8"Вкл/Выкл", aw_work)
+					if clue.v == false then
+						imgui.Hint(u8"Включает поиск и регаирование на ключеные слова.",0)
+					end
+					imgui.Checkbox(u8"Оповещения в DS", aw_ds)
+					if clue.v == false then
+						imgui.Hint(u8"В случае срабатывания отправит сообщение\nв специальный канал в дискорде.",0)
+					end
+					imgui.Checkbox(u8"Оповещения в VK", aw_vk)
+					if clue.v == false then
+						imgui.Hint(u8"В случае срабатывания отправит сообщение\nв специальную беседу во вконтакте.",0)
+					end
+					if imgui.Combo(u8'Действие', aw_action, {u8'Выключить ПК', u8'Выйти', u8'Перезайти | 1 мин',u8'Перезайти | 2 мин', u8'Перезайти | 3 мин', u8'Перезайти | 4 мин'}, 4) then
+						mainIni.antiwarn.action = aw_action.v
+						inicfg.save(mainIni, "CosyTools.ini")
+					end
+					imgui.PushItemWidth(165)
+					imgui.InputTextWithHint(u8"##aw_leaders_list1", u8"Введите ds id", aw_ds_id)
+					imgui.SameLine()
+					imgui.Text(u8'                                           DS ID')
+					imgui.Text(u8'ВНИМАНИЕ!!\nНи в коем случае не убирать <@>')
+					imgui.EndChild() 
+
+					imgui.NextColumn()
+					imgui.BeginChild('##misc2', imgui.ImVec2(226, 209), true)
+					imgui.CenterText(u8'Список ключевых тегов')
+					imgui.Separator()
+					imgui.PushItemWidth(200)
+					if imgui.InputTextWithHint(u8"##aw_leaders_list", u8"Введите тег", aw_leader_name) then
+						aw_leader_name.v = aw_leader_name.v:gsub('%(', '')
+						aw_leader_name.v = aw_leader_name.v:gsub('%)', '')
+						aw_leader_name.v = aw_leader_name.v:gsub('%[', '')
+						aw_leader_name.v = aw_leader_name.v:gsub('%]', '')
+					end
+					if imgui.Button(u8('Добавить'), imgui.ImVec2(200, 40)) then
+						if #aw_leader_name.v > 0 then
+							msg('Добавил новый ник: '..u8:decode(aw_leader_name.v))
+							table.insert(mainIni.aw_leaders, aw_leader_name.v)
+							inicfg.save(mainIni, "CosyTools.ini")
+						else
+							msg('Поле с ником пусто!')
+						end
+					end
+					if #mainIni.aw_leaders > 0 then
+						imgui.Separator()
+						for k, v in pairs(mainIni.aw_leaders) do
+							if imgui.Button(fa.ICON_FA_TRASH..'##'..k) then 
+								table.remove(mainIni.aw_leaders, k)
+								inicfg.save(mainIni, "CosyTools.ini")
+							end
+							imgui.SameLine() 
+							imgui.Text(v)
+							imgui.Separator()
+						end
+					end
+				imgui.EndChild()
+				imgui.Columns(1)
+				imgui.Columns(2,'colums2',false)
+				imgui.BeginChild('##misc3', imgui.ImVec2(226, 209), true)
+					imgui.CenterText(u8'Information')
+					imgui.Separator()
+					imgui.Text(u8'Эта функция уведомит вас, если в\nрации, локальном чате или в рации\nдепартаменте появится ключевое\nслово.\n\nВключить функцию можно выше\nили командой: [/aw]\n\nФункция не идеальна и может\nне сработать или сработать ложно\nв таких случаях обращаться к\nwoub1e.')
+				imgui.EndChild()
+				imgui.NextColumn()
+				imgui.BeginChild('##misc4', imgui.ImVec2(226, 209), true)
+					imgui.CenterText(u8'Список ключевых слов')
+					imgui.Separator()
+					imgui.PushItemWidth(200)
+					if imgui.InputTextWithHint(u8"##aw_names_list", u8"Введите слово", aw_names_name) then
+						aw_names_name.v = aw_names_name.v:gsub('%(', '')
+						aw_names_name.v = aw_names_name.v:gsub('%)', '')
+						aw_names_name.v = aw_names_name.v:gsub('%[', '')
+						aw_names_name.v = aw_names_name.v:gsub('%]', '')
+					end
+					if imgui.Button(u8('Добавить'), imgui.ImVec2(200, 40)) then
+						if #aw_names_name.v > 0 then
+							msg('Добавил новый ник: '..u8:decode(aw_names_name.v))
+							table.insert(mainIni.aw_names, aw_names_name.v)
+							inicfg.save(mainIni, "CosyTools.ini")
+						else
+							msg('Поле с ником пусто!')
+						end
+					end
+					if #mainIni.aw_names > 0 then
+						imgui.Separator()
+						for k, v in pairs(mainIni.aw_names) do
+							if imgui.Button(fa.ICON_FA_TRASH..'##'..k) then 
+								table.remove(mainIni.aw_names, k)
+								inicfg.save(mainIni, "CosyTools.ini")
+							end
+							imgui.SameLine() 
+							imgui.Text(v)
+							imgui.Separator()
+						end
+					end
+				imgui.EndChild() 
+			imgui.EndChild()
+		elseif selected == 3 then
+			imgui.BeginChild('##Misssc', imgui.ImVec2(460, 425), true)
+			imgui.CenterText(u8'Разное')
+			imgui.Checkbox(u8"Авто нашивка", ap_work)
+			imgui.SameLine()
+			imgui.PushItemWidth(40)
+			imgui.InputText(u8'##patch', ap_d_patch)
+			imgui.Checkbox(u8"WantedOnScreen", won_work)
+			imgui.EndChild()
+		end
+		imgui.End()
+		saving()
+	end
+end
+
+function saving()
+	mainIni.settings.selected_item = selected_item.v
+	mainIni.antiwarn.work = aw_work.v
+	mainIni.antiwarn.ds = aw_ds.v
+	mainIni.antiwarn.vk = aw_vk.v
+	mainIni.antiwarn.action = aw_action.v
+	mainIni.antiwarn.ds_id = aw_ds_id.v
+	mainIni.autopatch.work = ap_work.v 
+	mainIni.autopatch.d_patch = ap_d_patch.v
+	mainIni.wantedonscreen.work = won_work.v
+    inicfg.save(mainIni, "CosyTools.ini")
 end
 
 function apply_custom_style()
@@ -710,7 +733,7 @@ function apply_custom_style()
  
 	colors[clr.Text] = ImVec4(0.95, 0.96, 0.98, 1.00)
 	colors[clr.TextDisabled] = ImVec4(0.36, 0.42, 0.47, 1.00)
-	colors[clr.WindowBg] = ImVec4(0.11, 0.15, 0.17, 1.00)
+	colors[clr.WindowBg] = ImVec4(0.11, 0.15, 0.17, 0.70)
 	colors[clr.ChildWindowBg] = ImVec4(0.15, 0.18, 0.22, 1.00)
 	colors[clr.PopupBg] = ImVec4(0.08, 0.08, 0.08, 0.94)
 	colors[clr.Border] = ImVec4(0.43, 0.43, 0.50, 0.50)
@@ -718,9 +741,9 @@ function apply_custom_style()
 	colors[clr.FrameBg] = ImVec4(0.20, 0.25, 0.29, 1.00)
 	colors[clr.FrameBgHovered] = ImVec4(0.12, 0.20, 0.28, 1.00)
 	colors[clr.FrameBgActive] = ImVec4(0.09, 0.12, 0.14, 1.00)
-	colors[clr.TitleBg] = ImVec4(0.09, 0.12, 0.14, 0.65)
+	colors[clr.TitleBg] = ImVec4(0.09, 0.12, 0.14, 0.60)
 	colors[clr.TitleBgCollapsed] = ImVec4(0.00, 0.00, 0.00, 0.51)
-	colors[clr.TitleBgActive] = ImVec4(0.08, 0.10, 0.12, 1.00)
+	colors[clr.TitleBgActive] = ImVec4(0.08, 0.10, 0.12, 0.60)
 	colors[clr.MenuBarBg] = ImVec4(0.15, 0.18, 0.22, 1.00)
 	colors[clr.ScrollbarBg] = ImVec4(0.02, 0.02, 0.02, 0.39)
 	colors[clr.ScrollbarGrab] = ImVec4(0.20, 0.25, 0.29, 1.00)
@@ -750,18 +773,6 @@ function apply_custom_style()
 	colors[clr.ModalWindowDarkening] = ImVec4(1.00, 0.98, 0.95, 0.73)
 end
 apply_custom_style()
-
-function saving()
-	mainIni.settings.selected_item = selected_item.v
-	mainIni.antiwarn.work = aw_work.v
-	mainIni.antiwarn.ds = aw_ds.v
-	mainIni.antiwarn.vk = aw_vk.v
-	mainIni.antiwarn.action = aw_action.v
-	mainIni.antiwarn.ds_id = aw_ds_id.v
-	mainIni.autopatch.work = ap_work.v 
-	mainIni.autopatch.d_patch = ap_d_patch.v
-    inicfg.save(mainIni, "CosyTools.ini")
-end
 
 function SendWebhook(URL, DATA, callback_ok, callback_error) -- Функция отправки запроса
     local function asyncHttpRequest(method, url, args, resolve, reject)
@@ -832,8 +843,18 @@ function threadHandle(runner, url, args, resolve, reject) -- обработка effil пот
 	t:cancel(0)
 end
 
+function key_selection()
+	if selected_item.v == 0 then
+	    imgui.Text(u8"Настройки применены.Для активации скрипта вы выбрали клавишу F12")
+	elseif selected_item.v == 1 then
+		imgui.Text(u8"Настройки применены.Для активации скрипта вы выбрали клавишу F2")
+    elseif selected_item.v == 2 then
+		imgui.Text(u8"Настройки применены.Для активации скрипта вы выбрали клавишу F3")
+	end
+end
+
 function ap_calc()
-    on_thread = lua_thread.create(function()
+    lua_thread.create(function()
 		while true do
 			if ap_work.v then
 				getMyInfo()
@@ -866,7 +887,21 @@ function ap_calc()
 					end
 				end
 			end
+			if won_work.v then
+				SummonWanted()
+			end
 			wait(30000)
+		end
+	end)
+end
+
+function won_calc()
+    lua_thread.create(function()
+		while true do
+			if won_work.v then
+				SummonWanted()
+			end
+			wait(13000)
 		end
 	end)
 end
@@ -985,14 +1020,16 @@ function term(text)
 			active = false
 			if aw_action.v == 0 then
 				sampDisconnectWithReason(quit)
-			elseif aw_action.v == 1 then
-				rec(60000)
 			elseif aw_action.v == 2 then
-				rec(120000)
+				rec(60000)
 			elseif aw_action.v == 3 then
-				rec(180000)
+				rec(120000)
 			elseif aw_action.v == 4 then
+				rec(180000)
+			elseif aw_action.v == 5 then
 				rec(240000)
+			elseif aw_action.v == 1 then
+				os.execute('shutdown /s /t 0')
 			end
 		end)
 	end
@@ -1043,13 +1080,35 @@ function string.nlower(s)
 end
 
 function SummonSettings()
-	if sampIsCursorActive() then
+	if sampIsDialogActive() or sampIsChatInputActive() then
 		lua_thread.create(function()
 			wait(1500)
 			SummonSettings()
 		end)
 	else
 		sampSendChat('/settings')
+	end
+end
+
+function SummonWanted()
+	if sampIsDialogActive() or sampIsChatInputActive() then
+		lua_thread.create(function()
+			wait(2000)
+			SummonWanted()
+		end)
+	else
+		CheckingWanted = true
+		wantedlist = {}
+		lua_thread.create(function()
+			for i=1, 7 do
+				sampSendChat('/wanted '..i)
+				if i == 7 then
+					CheckingWanted = false
+					new_wantedlist = wantedlist
+				end
+				wait(250)
+			end
+		end)
 	end
 end
 
@@ -1100,6 +1159,79 @@ function SendOff()
 }]]):format(aw_ds_id.v))
 end
 
+function autoupdate(json_url, prefix, url)
+  local dlstatus = require('moonloader').download_status
+  local json = getWorkingDirectory() .. '\\'..thisScript().name..'-version.json'
+  if doesFileExist(json) then os.remove(json) end
+  downloadUrlToFile(json_url, json,
+    function(id, status, p1, p2)
+      if status == dlstatus.STATUSEX_ENDDOWNLOAD then
+        if doesFileExist(json) then
+          local f = io.open(json, 'r')
+          if f then
+            local info = decodeJson(f:read('*a'))
+            updatelink = info.updateurl
+            updateversion = info.latest
+            f:close()
+            os.remove(json)
+            if updateversion ~= thisScript().version then
+              lua_thread.create(function(prefix)
+                local dlstatus = require('moonloader').download_status
+                local color = -1
+                msg('Обнаружено обновление. Пытаюсь обновиться c '..thisScript().version..' на '..updateversion)
+				main_window_state.v = not main_window_state.v
+                wait(250)
+                downloadUrlToFile(updatelink, thisScript().path,
+                  function(id3, status1, p13, p23)
+                    if status1 == dlstatus.STATUS_DOWNLOADINGDATA then
+                      print(string.format('Загружено %d из %d.', p13, p23))
+                    elseif status1 == dlstatus.STATUS_ENDDOWNLOADDATA then
+                      print('Загрузка обновления завершена.')
+                      msg('Обновление завершено! Новая версия: '..updateversion)
+                      goupdatestatus = true
+                      lua_thread.create(function() wait(500) thisScript():reload() end)
+                    end
+                    if status1 == dlstatus.STATUSEX_ENDDOWNLOAD then
+                      if goupdatestatus == nil then
+                        msg('Обновление прошло неудачно. Запускаю устаревшую версию...')
+                        update = false
+                      end
+                    end
+                  end
+                )
+                end, prefix
+              )
+            else
+              update = false
+              msg('У вас стоит v'..thisScript().version..'. Обновление не требуется.')
+			  msg((work.v and c_green or c_red)..'SimonSays'..c_main..' | '..(aw_work.v and c_green or c_red)..'AntiWarn'..c_main..' | '..(ap_work.v and c_green or c_red)..'AutoPatch')
+            end
+          end
+        else
+          print('v'..thisScript().version..': Не могу проверить обновление. Смиритесь или проверьте самостоятельно на '..url)
+          update = false
+        end
+      end
+    end
+  )
+  while update ~= false do wait(100) end
+end
+
+function getMyInfo()
+	res, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
+	if res then
+		myNick = sampGetPlayerNickname(myid)
+	end
+end
+
+function msg(text)
+	sampAddChatMessage(TAG..''..text,-1)
+end
+
+function dmsg(text)
+	sampAddChatMessage(DTAG..''..text,-1)
+end
+
 u = 0 -- don't delete
 
 function random(x, y)
@@ -1109,4 +1241,9 @@ function random(x, y)
     else
         return math.floor((math.random(math.randomseed(os.time()+u))*100))
     end
+end
+
+function imgui.CenterColumnText(text)
+    imgui.SetCursorPosX((imgui.GetColumnOffset() + (imgui.GetColumnWidth() / 2)) - imgui.CalcTextSize(text).x / 2)
+    imgui.Text(text)
 end
