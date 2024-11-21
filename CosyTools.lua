@@ -339,7 +339,7 @@ function imgui.OnDrawFrame()
 		imgui.Separator()
 		if imgui.Button(fa.ICON_FA_USER .. u8' Саймон', imgui.ImVec2(135, 70.4)) then selected = 2 end
 		imgui.Separator()
-		if imgui.Button(fa.ICON_FA_WRENCH	 .. u8' SOON', imgui.ImVec2(135, 70.4)) then selected = 5 end
+		if imgui.Button(fa.ICON_FA_WRENCH	 .. u8' АвтоОписание', imgui.ImVec2(135, 70.4)) then selected = 5 end
 		imgui.Separator()
 		if imgui.Button(fa.ICON_FA_EXCLAMATION_TRIANGLE .. u8' АнтиВыговор', imgui.ImVec2(135, 70.4)) then selected = 4 end
 		imgui.Separator()
