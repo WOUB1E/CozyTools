@@ -1,8 +1,8 @@
 script_name("CosyTools")
-script_version("4")
+script_version("5")
 
-local TAG = '{7B68EE}[WOUBLE] {CFCFCF}CosyTools | {9B9B9B}'
-local DTAG = '{7B68EE}CosyDEBUG | {9B9B9B}'
+local TAG = ':robot: {7B68EE}[WOUBLE] {CFCFCF}CosyTools | {9B9B9B}'
+local DTAG = ':robot: {7B68EE}CosyDEBUG | {9B9B9B}'
 local c_green = '{1DDC4B}'
 local c_red = '{E92313}'
 local c_main = '{9B9B9B}'
@@ -28,8 +28,6 @@ local myskin = 0
 local lastskin = 0
 local rab = false
 local active = false
-new_wantedlist = {}
-wantedlist = {}
 --[[settings colors and lines]]
 local linewidth = '3.5' --[[Рекомендованные значения от 3.0 до 5.0]]
 --[[settings colors and lines]]
@@ -50,10 +48,7 @@ local mainIni = inicfg.load({
 	},
 	autopatch = {
 		work = false,
-		d_patch = u8'A000A'
-	},
-	wantedonscreen = {
-		work = false,
+		patch_swat = u8'На поясе жетон __ /На груди нашивка __'
 	},
 	simons = {},
 	aw_leaders = {u8'начальник тюрьмы', u8'зам. начальника тюрьмы', u8'директор фбр', u8'заместитель директора фбр', u8'андершериф', u8'шериф', u8'заместитель шефа', u8'шеф', u8'local', u8'куратор'},
@@ -65,8 +60,7 @@ local work = imgui.ImBool(true)
 local debuger = imgui.ImBool(false)
 local ap_work = imgui.ImBool(mainIni.autopatch.work)
 local ap_d_official = 'На поясе висит жетон FBI'
-local ap_d_swat = 'На поясе жетон FBI/На груди нашивка '
-local ap_d_patch = imgui.ImBuffer(mainIni.autopatch.d_patch, 100)
+local patch_swat = imgui.ImBuffer(mainIni.autopatch.patch_swat, 100)
 local aw_work = imgui.ImBool(mainIni.antiwarn.work)
 local aw_ds = imgui.ImBool(mainIni.antiwarn.ds)
 local aw_vk = imgui.ImBool(mainIni.antiwarn.vk)
@@ -79,12 +73,7 @@ local aw_names_name = imgui.ImBuffer(50)
 local scriptName = imgui.ImBuffer(mainIni.settings.scriptName, 256)
 local clue = imgui.ImBool(mainIni.settings.clue)
 local distanceoff = imgui.ImBool(mainIni.settings.distanceoff)
-local selected_item = imgui.ImInt(mainIni.settings.selected_item)
-local won_work = imgui.ImBool(mainIni.wantedonscreen.work)
-
-local aa = imgui.ImBool(false)
-local MainWindow = imgui.ImBool(false)
-local WantedWindow = imgui.ImBool(won_work.v)
+local selected_item = imgui.ImInt(mainIni.settings.selected_item) 
 
 local main_window_state = imgui.ImBool(false)
 local sw, sh = getScreenResolution()
@@ -173,7 +162,7 @@ function main()
 			end
 		end
         imgui.ShowCursor = main_window_state.v
-        imgui.Process = main_window_state.v or won_work.v
+        imgui.Process = main_window_state.v
 	end
 end
 
@@ -201,16 +190,10 @@ function samp.onShowDialog(did, style, title, b1, b2, text)
 				end
 			end
 		elseif title:find('Подтверждение действия') then
-			NeedWait = 7
 			if text:find('через %d+ сек') then
 				NeedWait = string.match(text,'через (%d+) сек')
+				printStyledString('Accepting: '..NeedWait, 500, 6)
 				sampSendDialogResponse(did, 1, 2, nil)
-				lua_thread.create(function()
-					aa.v = true
-					wait(NeedWait*1000)
-					aa.v = false
-				end)
-				was_command = false
 				return false
 			end
 		end
@@ -229,7 +212,7 @@ function samp.onShowDialog(did, style, title, b1, b2, text)
 				rab = false
 				return false
 			elseif statusskin == 2 then
-				sampSendDialogResponse(did, 1, nil, ap_d_swat..''..ap_d_patch.v)
+				sampSendDialogResponse(did, 1, nil, patch_swat.v)
 				rab = false
 				return false
 			elseif statusskin == 0 then
@@ -249,28 +232,6 @@ function samp.onShowDialog(did, style, title, b1, b2, text)
 		sampSendDialogResponse(did, 1, nil, nil)
 		return false
 	end
-	--if won_work.v then || {FFFFFF}Tulskiy_Myasnik({21FF11}401{FFFFFF})	6 уровень	[ в интерьере ]
-		if did == 1780 then -- wanted
-			for line in text:gmatch('[^\r\n]+') do
-				if line:find('%{FFFFFF%}%w+_%w+%(%{21FF11%}%d+%{FFFFFF%}%)\t%d+ уровень\t%[.+%]') then
-					local person_name, person_id, person_lvl, person_dist = string.match(line, '%{FFFFFF%}(%w+_%w+)%(%{21FF11%}(%d+)%{FFFFFF%}%)\t(%d+) уровень\t%[(.+)%]')
-					if person_dist ~= ' в интерьере ' then
-						person_dist = string.match(person_dist,'(%d+)%.%d м%.')..' м'
-					else
-						person_dist = 'в инте'
-					end
-					wantedlist[#wantedlist+1] = {
-						nick = tostring(person_name),
-						id = tonumber(person_id),
-						lvl = tonumber(person_lvl),
-						dist = person_dist
-					}
-					sampSendDialogResponse(did, 0, nil, nil)
-					return false	
-				end
-			end
-		end
-	--end
 end
 
 function samp.onServerMessage(color,text)
@@ -291,7 +252,7 @@ function samp.onServerMessage(color,text)
 	if aw_work.v then
 		getMyInfo()
 		if text:find('%[R%].-%A+ %w+_%w+%[.+%]: .+') then
-			local tag, textt = string.match(text,'%[R%].+(%A+) %w+_%w+%[.+%]: (.+)')
+			local tag, textt = string.match(text,'%[R%].-(%A+) %w+_%w+%[.+%]: (.+)')
 			find_me(text,textt,tag)
 		elseif text:find('.+%[.+%] говорит:%{.+%} .+') then
 			local textt = string.match(text,'.+%[.+%] говорит:%{.+%} (.+)')
@@ -353,72 +314,19 @@ function samp.onServerMessage(color,text)
 		elseif text:find('%[Новое предложение%]%{ffffff%} Вам поступило предложение от игрока .+%. Используйте команду: /offer или клавишу X') then
 			local simon = string.match(text, '%[Новое предложение%]%{ffffff%} Вам поступило предложение от игрока (.+)%. Используйте команду: /offer или клавишу X')
 			if table.concat(mainIni.simons, ', '):find(simon) then
-				sampAddChatMessage('{73B461}[Новое предложение]{ffffff} Вам поступило предложение от игрока '..simon..'. Используйте команду: /offer или клавишу X',-1)
+				msg('Поступило предложение от саймона, начинаем принимать предложение!')
 				was_command = true
 				sampSendChat('/offer')
+			else
+				sampAddChatMessage('{73B461}[Новое предложение]{ffffff} Вам поступило предложение от игрока '..simon..'. Используйте команду: /offer или клавишу X',-1)			
 			end
-		end
-	end
-	if won_work.v then
-		if text:find('Игроков с таким уровнем розыска нету') then
+		elseif text:find('%[Новое предложение%]%{ffffff%} Предложение перестанет быть активным через 60 секунд.') then
 			return false
-		end 
+		end
 	end
 end
 
 function imgui.OnDrawFrame()
-	if aa.v then
-		imgui.ShowCursor = false
-		imgui.SetNextWindowPos(imgui.ImVec2((ScreenX-200)/2, ScreenY/1.4), imgui.Cond.FirstUseEver)
-		imgui.SetNextWindowSize(imgui.ImVec2(190, 80), imgui.Cond.FirstUseEver)
-		imgui.Begin(u8'active_accepting', aa.v, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoMove + imgui.WindowFlags.NoTitleBar)
-			imgui.CenterText(u8'Принимаю предложение...')
-			imgui.CenterText(u8'Отправитель: '..sender)
-			imgui.CenterText(NeedWait..'/10')
-		imgui.End()
-
-	end
-	if won_work.v then
-		imgui.ShowCursor = false
-		if tonumber(#new_wantedlist) >= 16 then
-			sizeYY = 413
-		elseif tonumber(#new_wantedlist) > 0 then
-			sizeYY = 24.5 * ( tonumber(#new_wantedlist) + 2 )
-		elseif tonumber(#new_wantedlist) == 0 then
-			sizeYY = 50
-		end
-		imgui.SetNextWindowSize(imgui.ImVec2(350, sizeYY), imgui.Cond.FirstUseEver)
-		imgui.SetNextWindowPos(imgui.ImVec2(ScreenX-360, ScreenY/2.9), imgui.Cond.Always)
-		imgui.Begin(u8" Список преступников (всего " .. #new_wantedlist .. u8')', _, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
-			imgui.Columns(3,'a',false)
-			imgui.CenterColumnText(u8("Никнейм"))
-			imgui.SetColumnWidth(-1, 200)
-			imgui.NextColumn()
-			imgui.CenterColumnText(u8("Розыск"))
-			imgui.SetColumnWidth(-1, 65)
-			imgui.NextColumn()
-			imgui.CenterColumnText(u8("Растояние"))
-			imgui.SetColumnWidth(-1, 80)
-			imgui.Columns(1,'b',false)
-			for k,v in pairs(new_wantedlist) do
-				imgui.Separator()
-				imgui.Columns(3,'c',false)
-				imgui.CenterColumnText(u8(v.nick) .. ' [' .. v.id .. ']')
-				if imgui.IsItemClicked() and not v.dist ~= 'в инте' then
-					sampSendChat('/pursuit ' .. v.id)
-				end
-				imgui.SetColumnWidth(-1, 200)
-				imgui.NextColumn()
-				imgui.CenterColumnText(u8(v.lvl))
-				imgui.SetColumnWidth(-1, 65)
-				imgui.NextColumn()
-				imgui.CenterColumnText(u8(v.dist))
-				imgui.SetColumnWidth(-1, 80)
-				imgui.NextColumn()
-				imgui.Columns(1)
-			end
-		imgui.End()
-	end
 
 	if main_window_state.v then
 		imgui.ShowCursor = true
@@ -440,7 +348,14 @@ function imgui.OnDrawFrame()
 		imgui.SameLine()
 		if selected == 5 then
 			imgui.BeginChild('##render', imgui.ImVec2(460, 425), true)
-			imgui.CenterText(u8'НАПИСАНО ЖЕ СКОРО, ХУЛИ ТЫ СЮДА ЛЕЗЕШЬ? ИДИ НАХУЙ АЦУДА')
+			imgui.CenterText(u8'Авто Описание')
+			imgui.SameLine()
+			imgui.Checkbox(u8"", ap_work)
+			imgui.Text(u8'Форма SWAT:')
+			imgui.SameLine()
+			imgui.PushItemWidth(350)
+			imgui.InputText(u8'##patch', patch_swat)
+			imgui.Text(u8'soon')
 			imgui.EndChild()
 		elseif selected == 2 then
 			imgui.BeginChild('##simon', imgui.ImVec2(227, 425), true)
@@ -681,11 +596,7 @@ function imgui.OnDrawFrame()
 		elseif selected == 3 then
 			imgui.BeginChild('##Misssc', imgui.ImVec2(460, 425), true)
 			imgui.CenterText(u8'Разное')
-			imgui.Checkbox(u8"Авто нашивка", ap_work)
-			imgui.SameLine()
-			imgui.PushItemWidth(40)
-			imgui.InputText(u8'##patch', ap_d_patch)
-			imgui.Checkbox(u8"WantedOnScreen", won_work)
+			imgui.Text(u8'Пока-что тут пусто, но думаю скоро добавим.')
 			imgui.EndChild()
 		end
 		imgui.End()
@@ -701,8 +612,7 @@ function saving()
 	mainIni.antiwarn.action = aw_action.v
 	mainIni.antiwarn.ds_id = aw_ds_id.v
 	mainIni.autopatch.work = ap_work.v 
-	mainIni.autopatch.d_patch = ap_d_patch.v
-	mainIni.wantedonscreen.work = won_work.v
+	mainIni.autopatch.patch_swat = patch_swat.v
     inicfg.save(mainIni, "CosyTools.ini")
 end
 
@@ -887,21 +797,7 @@ function ap_calc()
 					end
 				end
 			end
-			if won_work.v then
-				SummonWanted()
-			end
 			wait(30000)
-		end
-	end)
-end
-
-function won_calc()
-    lua_thread.create(function()
-		while true do
-			if won_work.v then
-				SummonWanted()
-			end
-			wait(13000)
 		end
 	end)
 end
@@ -1087,28 +983,6 @@ function SummonSettings()
 		end)
 	else
 		sampSendChat('/settings')
-	end
-end
-
-function SummonWanted()
-	if sampIsDialogActive() or sampIsChatInputActive() then
-		lua_thread.create(function()
-			wait(2000)
-			SummonWanted()
-		end)
-	else
-		CheckingWanted = true
-		wantedlist = {}
-		lua_thread.create(function()
-			for i=1, 7 do
-				sampSendChat('/wanted '..i)
-				if i == 7 then
-					CheckingWanted = false
-					new_wantedlist = wantedlist
-				end
-				wait(250)
-			end
-		end)
 	end
 end
 
