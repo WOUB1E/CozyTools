@@ -1,5 +1,5 @@
 script_name("CosyTools")
-script_version("5")
+script_version("6")
 
 local TAG = ':robot: {7B68EE}[WOUBLE] {CFCFCF}CosyTools | {9B9B9B}'
 local DTAG = ':robot: {7B68EE}CosyDEBUG | {9B9B9B}'
