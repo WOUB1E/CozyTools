@@ -1,6 +1,10 @@
 script_name("CosyTools")
-script_version("6")
+script_version("7")
+--[[
+ОБНОВЫ:
 
+
+--]]
 local TAG = ':robot: {7B68EE}[WOUBLE] {CFCFCF}CosyTools | {9B9B9B}'
 local DTAG = ':robot: {7B68EE}CosyDEBUG | {9B9B9B}'
 local c_green = '{1DDC4B}'
@@ -29,6 +33,7 @@ encoding.default = 'CP1251'
 u8 = encoding.UTF8
 local selected = 1
 local WasArmour = false
+local alarm = true
 local statusskin = 0
 NeedWait = 0
 local updateid
@@ -52,7 +57,7 @@ local mainIni = inicfg.load({
 	antiwarn = {
 		work = false,
 		ds = true,
-		vk = false,
+		tg = false,
 		action = 1,
 		ds_id = '<@id>'
 		
@@ -74,7 +79,7 @@ local ap_d_official = 'На поясе висит жетон FBI'
 local patch_swat = imgui.ImBuffer(mainIni.autopatch.patch_swat, 100)
 local aw_work = imgui.ImBool(mainIni.antiwarn.work)
 local aw_ds = imgui.ImBool(mainIni.antiwarn.ds)
-local aw_vk = imgui.ImBool(mainIni.antiwarn.vk)
+local aw_tg = imgui.ImBool(mainIni.antiwarn.tg)
 local aw_action = imgui.ImInt(mainIni.antiwarn.action)
 local aw_ds_id = imgui.ImBuffer(mainIni.antiwarn.ds_id,200)
 local testbuffer = imgui.ImBuffer(50)
@@ -165,91 +170,105 @@ function samp.onShowDialog(did, style, title, b1, b2, text)
 end
 
 function samp.onServerMessage(color,text)
-	if ap_work.v then
-		if text:find("Устанавливать описание можно один раз в минуту.") then
-			lua_thread.create(function()
-				wait(10000)
-				lastskin = 0
-				rab = true
-				SummonSettings()
-			end)
-			return false
-		elseif text:find("Используйте не меньше 10 и не больше 80 символов!") then
-			msg('Ошибка. Используйте не меньше 10 и не больше 80 символов!')
-			return false
+	if text then
+		if ap_work.v then
+			if text:find("Устанавливать описание можно один раз в минуту.") then
+				lua_thread.create(function()
+					wait(10000)
+					lastskin = 0
+					rab = true
+					SummonSettings()
+				end)
+				return false
+			elseif text:find("Используйте не меньше 10 и не больше 80 символов!") then
+				msg('Ошибка. Используйте не меньше 10 и не больше 80 символов!')
+				return false
+			end
+		end 
+		if aw_work.v then--[R] [CUR | Шредер] Куратор {000000}Asuka_DeSoto[319]:{2db043} Недди
+			getMyInfo()
+			if (text:gsub('{......}', '')):find('%[R%] .- %w+_%w+%[%d+%]:.+') then
+				print(text)
+				text = text:gsub('{......}', '')
+				local tag, textt = string.match(text,'%[R%] (.-) %w+_%w+%[%d+%]:(.+)')-- [R] [OD | Modest] Caianoeoaeu ae?aeoi?a OA? Asan_Umerov[241]: (( Nai ia o?iaae ))
+				tag = tag:gsub('%[.+%] ', '')
+				find_me(text,textt,tag)
+			end
 		end
-	end 
-	if aw_work.v then--[R] [CUR | Шредер] Куратор {000000}Asuka_DeSoto[319]:{2db043} Недди
-		getMyInfo()
-		if (text:gsub('{......}', '')):find('%[R%] .- %w+_%w+%[%d+%]:.+') then
-			print(text)
-			text = text:gsub('{......}', '')
-			local tag, textt = string.match(text,'%[R%] (.-) %w+_%w+%[%d+%]:(.+)')-- [R] [OD | Modest] Caianoeoaeu ae?aeoi?a OA? Asan_Umerov[241]: (( Nai ia o?iaae ))
-			tag = tag:gsub('%[.+%] ', '')
-			find_me(text,textt,tag)
-		end
-	end
-	if work.v then
-		if text:find('%(%( .+%[%d+%]: %{B7AFAF%}#.+ %)%)') then -- комманда
-			print('command: '..text)
-			local simon, command = string.match(text, '%(%( (.+)%[%d+%]: %{B7AFAF%}#(.+)%{FFFFFF%} %)%)')
-			if table.concat(mainIni.simons, ', '):find(simon) then
-				getMyInfo()
-				if simon  ~= myNick then
-					lua_thread.create(function()
-						wait(200)
-						sampProcessChatInput(command)
-					end)
+		if work.v then
+			if text:find('%(%( .+%[%d+%]: %{B7AFAF%}#.+ %)%)') then -- комманда
+				print('command: '..text)
+				local simon, command = string.match(text, '%(%( (.+)%[%d+%]: %{B7AFAF%}#(.+)%{FFFFFF%} %)%)')
+				if table.concat(mainIni.simons, ', '):find(simon) then
+					getMyInfo()
+					if simon  ~= myNick then
+						lua_thread.create(function()
+							wait(200)
+							sampProcessChatInput(command)
+						end)
+					end
+				end--(( Neddie_Barlow[314]: {B7AFAF}145, a{FFFFFF} ))
+			elseif text:find('%(%( %w+_%w+%[%d+%]: %{B7AFAF%}%d+, .+%{FFFFFF%} %)%)') then -- обращение
+				print('обращение: '..text)
+				local simon, who, command = string.match(text, '%(%( (%w+_%w+)%[%d+%]: %{B7AFAF%}(%d+), (.+)%{FFFFFF%} %)%)')
+				if table.concat(mainIni.simons, ', '):find(simon) then
+					getMyInfo()
+					if simon  ~= myNick then
+						if tonumber(who) == myid or who == myNick then
+							lua_thread.create(function()
+								wait(200)
+								sampProcessChatInput(command)
+							end)
+						end
+					end
 				end
-			end--(( Neddie_Barlow[314]: {B7AFAF}145, a{FFFFFF} ))
-		elseif text:find('%(%( %w+_%w+%[%d+%]: %{B7AFAF%}%d+, .+%{FFFFFF%} %)%)') then -- обращение
-			print('обращение: '..text)
-			local simon, who, command = string.match(text, '%(%( (%w+_%w+)%[%d+%]: %{B7AFAF%}(%d+), (.+)%{FFFFFF%} %)%)')
-			if table.concat(mainIni.simons, ', '):find(simon) then
-				getMyInfo()
-				if simon  ~= myNick then
-					if tonumber(who) == myid or who == myNick then
+			elseif text:find('%{C04312%}%[Семья%].+ %w+_%w+%[%d+%]:%{B9C1B8%} #.+') then
+				local simon, command = string.match(text, '%{C04312%}%[Семья%].+ (%w+_%w+)%[%d+%]:%{B9C1B8%} #(.+)')
+				if table.concat(mainIni.simons, ', '):find(simon) then
+					getMyInfo()
+					if simon  ~= myNick then
 						lua_thread.create(function()
 							wait(200)
 							sampProcessChatInput(command)
 						end)
 					end
 				end
-			end
-		elseif text:find('%{C04312%}%[Семья%].+ %w+_%w+%[%d+%]:%{B9C1B8%} #.+') then
-			local simon, command = string.match(text, '%{C04312%}%[Семья%].+ (%w+_%w+)%[%d+%]:%{B9C1B8%} #(.+)')
-			if table.concat(mainIni.simons, ', '):find(simon) then
-				getMyInfo()
-				if simon  ~= myNick then
-					lua_thread.create(function()
-						wait(200)
-						sampProcessChatInput(command)
-					end)
+			elseif text:find('%[R%].+ %w+_%w+%[%d+%]: %(%( #.+ %)%)') then
+				local simon, command = string.match(text, '%[R%].+ (%w+_%w+)%[%d+%]: %(%( #(.+) %)%)')
+				if table.concat(mainIni.simons, ', '):find(simon) then
+					getMyInfo()
+					if simon  ~= myNick then
+						lua_thread.create(function()
+							wait(200)
+							sampProcessChatInput(command)
+						end)
+					end
 				end
-			end
-		elseif text:find('%[R%].+ %w+_%w+%[%d+%]: %(%( #.+ %)%)') then
-			local simon, command = string.match(text, '%[R%].+ (%w+_%w+)%[%d+%]: %(%( #(.+) %)%)')
-			if table.concat(mainIni.simons, ', '):find(simon) then
-				getMyInfo()
-				if simon  ~= myNick then
-					lua_thread.create(function()
-						wait(200)
-						sampProcessChatInput(command)
-					end)
+			elseif text:find('%[Новое предложение%]%{ffffff%} Вам поступило предложение от игрока .+%. Используйте команду: /offer или клавишу X') then
+				local simon = string.match(text, '%[Новое предложение%]%{ffffff%} Вам поступило предложение от игрока (.+)%. Используйте команду: /offer или клавишу X')
+				if table.concat(mainIni.simons, ', '):find(simon) then
+					msg('Поступило предложение от саймона, начинаем принимать предложение!')
+					was_command = true
+					sampSendChat('/offer')
+					return true
 				end
+			elseif text:find('%[Новое предложение%]%{ffffff%} Предложение перестанет быть активным через 60 секунд.') then
+				return false
 			end
-		elseif text:find('%[Новое предложение%]%{ffffff%} Вам поступило предложение от игрока .+%. Используйте команду: /offer или клавишу X') then
-			local simon = string.match(text, '%[Новое предложение%]%{ffffff%} Вам поступило предложение от игрока (.+)%. Используйте команду: /offer или клавишу X')
-			if table.concat(mainIni.simons, ', '):find(simon) then
-				msg('Поступило предложение от саймона, начинаем принимать предложение!')
-				was_command = true
-				sampSendChat('/offer')
-			else
-				sampAddChatMessage('{73B461}[Новое предложение]{ffffff} Вам поступило предложение от игрока '..simon..'. Используйте команду: /offer или клавишу X',-1)			
-			end
-		elseif text:find('%[Новое предложение%]%{ffffff%} Предложение перестанет быть активным через 60 секунд.') then
-			return false
 		end
+		if text:find("^ A: .+") then
+			lua_thread.create(function() wait(100) sampSendChat("/thanks Ramp_Onion") end)
+		end
+	end
+	-- Уведомление перед PD:
+	time_min = os.date("!%M", os.time(utc) + 3 * 3600 )
+	time_min = tonumber(time_min)
+	if alarm and (time_min > 56 or (time_min < 30 and time_min > 26)) then
+		msg("Скоро {ea4537}пейдей"..c_main..", пупсик. Подготовься как надо :albert:")
+		msg("Скоро {ea4537}пейдей"..c_main..", пупсик. Подготовься как надо :albert:")
+		alarm = false
+	elseif (time_min > 0 and time_min < 27) or (time_min > 30 and time_min < 57) then
+		alarm = true
 	end
 end
 
@@ -431,11 +450,11 @@ function imgui.OnDrawFrame()
 					if clue.v == false then
 						imgui.Hint(u8"В случае срабатывания отправит сообщение\nв специальный канал в дискорде.",0)
 					end
-					imgui.Checkbox(u8"Оповещения в VK", aw_vk)
+					imgui.Checkbox(u8"Оповещения в TG", aw_tg)
 					if clue.v == false then
-						imgui.Hint(u8"В случае срабатывания отправит сообщение\nв специальную беседу во вконтакте.",0)
+						imgui.Hint(u8"В случае срабатывания отправит сообщение\nв специальную группу TG.",0)
 					end
-					if imgui.Combo(u8'Действие', aw_action, {u8'Выключить ПК', u8'Выйти', u8'Перезайти | 1 мин',u8'Перезайти | 2 мин', u8'Перезайти | 3 мин', u8'Перезайти | 4 мин'}, 4) then
+					if imgui.Combo(u8'Действие', aw_action, {u8'Выключить ПК', u8'Выйти', u8'Перезайти | 2 мин',u8'Перезайти | 4 мин', u8'Перезайти | 10 мин', u8'Перезайти | 15 мин'}, 4) then
 						mainIni.antiwarn.action = aw_action.v
 						inicfg.save(mainIni, "CosyTools.ini")
 					end
@@ -535,7 +554,7 @@ function saving()
 	mainIni.settings.selected_item = selected_item.v
 	mainIni.antiwarn.work = aw_work.v
 	mainIni.antiwarn.ds = aw_ds.v
-	mainIni.antiwarn.vk = aw_vk.v
+	mainIni.antiwarn.tg = aw_tg.v
 	mainIni.antiwarn.action = aw_action.v
 	mainIni.antiwarn.ds_id = aw_ds_id.v
 	mainIni.autopatch.work = ap_work.v 
@@ -841,27 +860,26 @@ function term(text)
 				if aw_ds then
 					SendNotify(text)
 				end
-				if aw_vk then
+				if aw_tg then
 					sendTelegramNotificationWithButtons(text)
 				end
 
 				msg('Требуется кассир.')
 				wait(60000)
 				SendOff()
-				SendVkOff(text)
 				active = false
-				if aw_action.v == 1 then
+				if aw_action.v == 0 then
+					os.execute('shutdown /s /t 0')
+				elseif aw_action.v == 1 then
 					sampDisconnectWithReason(quit)
 				elseif aw_action.v == 2 then
-					rec(60000)
+					rec(122000)
 				elseif aw_action.v == 3 then
-					rec(120000)
+					rec(242000)
 				elseif aw_action.v == 4 then
-					rec(180000)
+					rec(602000)
 				elseif aw_action.v == 5 then
-					rec(240000)
-				elseif aw_action.v == 0 then
-					os.execute('shutdown /s /t 0')
+					rec(902000)
 				end
 			end)
 		end
@@ -882,7 +900,7 @@ function get_telegram_updates() -- функция получения сообщений от юзера
     while true do
         url = 'https://api.telegram.org/bot'..token..'/getUpdates?chat_id='..chat_id..'&offset=-1' -- создаем ссылку
         threadHandle(runner, url, args, processing_telegram_messages, reject)
-        wait(0)
+        wait(500)
     end
 end
 
@@ -907,74 +925,83 @@ function sendTelegramNotificationWithButtons(msg)
     async_http_request('https://api.telegram.org/bot' .. token .. '/sendMessage?chat_id=' .. chat_id .. '&text=' .. msg .. '&reply_markup=' .. reply_markup_encoded, '', function(result) end)
 end
 
-function processing_telegram_messages(result) -- функция проверки того, что отправил пользователь
-    if result then
-        local proc_table = decodeJson(result)
-        if proc_table.ok then
-            if #proc_table.result > 0 then
-                local res_table = proc_table.result[1]
-                if res_table then
-                    if res_table.update_id ~= updateid then
-                        updateid = res_table.update_id
-                        if res_table.message then
-                            local message_from_user = res_table.message.text
-                            if message_from_user then
-                                local text = u8:decode(message_from_user) .. ' '
-                                if text:match('^!r') then
-                                    sendTelegramNotification('Ку')
-                                end
-                            end
-                        elseif res_table.callback_query then
-							if res_table.callback_query.message.text:find(myNick) then
-								local callback_data = res_table.callback_query.data
-								if callback_data == "button1" then
-									raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
-									raknetDeleteBitStream(raknetNewBitStream())
-									sendTelegramNotification("Вы вышли из игры.")
-								elseif callback_data == "button2" then
-									lua_thread.create(function()
-										sampSendChat('/r Извините, но я уже уезжаю из штата')
-										wait(7000)
-										raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
-										raknetDeleteBitStream(raknetNewBitStream())
-										sendTelegramNotification("Отправлено сообщение об оффе.\nВы вышли из игры.")
-									end)
-								elseif callback_data == "button3" then
-									sampSendChat("/r Ау")
-									sendTelegramNotification("Отправлено сообщение 'Ау' в рацию.")
-								elseif callback_data == "button4" then
-									if terminate_session and terminate_session:status() == 'yielded' then
-										terminate_session:terminate()
-										active = false
-										msg('AntiWarn | Галя, отмена!!')
-										sendTelegramNotification("Выход предотвращен.")
-									else
-										sendTelegramNotification("Уэээ бля, че творишь.")
-									end
-								end
+function processing_telegram_messages(result) -- функция проверки того, что отправил  
+	if not result then return end
+    local ok, proc_table = pcall(decodeJson, result)
+    if not ok or not proc_table or not proc_table.ok then return end
+
+	if proc_table.ok then
+		if #proc_table.result > 0 then
+			local res_table = proc_table.result[1]
+			if res_table and res_table.update_id ~= updateid then
+				updateid = res_table.update_id
+				if res_table.message then
+					local message_from_user = res_table.message.text
+					if message_from_user then
+						local text = u8:decode(message_from_user) .. ' '
+						if text:match('^!r') then
+							sendTelegramNotification('Ку')
+						end
+					end
+				elseif res_table.callback_query then
+					if res_table.callback_query.message and 
+					   res_table.callback_query.message.text and 
+					   res_table.callback_query.message.text:find(myNick) then
+						local callback_data = res_table.callback_query.data
+						if callback_data == "button1" then
+							raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
+							raknetDeleteBitStream(raknetNewBitStream())
+							sendTelegramNotification("Вы вышли из игры.")
+						elseif callback_data == "button2" then
+							lua_thread.create(function()
+								sampSendChat('/r Извините, но я уже уезжаю из штата')
+								wait(7000)
+								raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
+								raknetDeleteBitStream(raknetNewBitStream())
+								sendTelegramNotification("Отправлено сообщение об оффе.\nВы вышли из игры.")
+							end)
+						elseif callback_data == "button3" then
+							sampSendChat("/r Ау")
+							sendTelegramNotification("Отправлено сообщение 'Ау' в рацию.")
+						elseif callback_data == "button4" then
+							if terminate_session and terminate_session:status() == 'yielded' then
+								terminate_session:terminate()
+								active = false
+								msg('AntiWarn | Галя, отмена!!')
+								sendTelegramNotification("Выход предотвращен.")
+							else
+								sendTelegramNotification("Уэээ бля, че творишь.")
 							end
-                        end
-                    end
-                end
-            end
-        end
-    end
+						end
+					end
+				end
+			end
+		end
+	end
 end
 
-function getLastUpdate() -- тут мы получаем последний ID сообщения, если же у вас в коде будет настройка токена и chat_id, вызовите эту функцию для того чтоб получить последнее сообщение
-    async_http_request('https://api.telegram.org/bot'..token..'/getUpdates?chat_id='..chat_id..'&offset=-1','',function(result)
-        if result then
-            local proc_table = decodeJson(result)
-            if proc_table.ok then
-                if #proc_table.result > 0 then
-                    local res_table = proc_table.result[1]
-                    if res_table then
-                        updateid = res_table.update_id
-                    end
-                else
-                    updateid = 1 -- тут зададим значение 1, если таблица будет пустая
-                end
+function getLastUpdate()
+    async_http_request('https://api.telegram.org/bot'..token..'/getUpdates?chat_id='..chat_id..'&offset=-1', '', function(result)
+        if not result then 
+            updateid = 1
+            return 
+        end
+        
+        local ok, proc_table = pcall(decodeJson, result)
+        if not ok or not proc_table or not proc_table.ok then 
+            updateid = 1
+            return
+        end
+        
+        if #proc_table.result > 0 then
+            local res_table = proc_table.result[1]
+            if res_table then
+                updateid = res_table.update_id
+            else
+                updateid = 1
             end
+        else
+            updateid = 1
         end
     end)
 end
@@ -1046,32 +1073,6 @@ function SummonSettings()
 	else
 		sampSendChat('/settings')
 	end
-end
-
-function SendVkNotify(text)
-	token_vk = '999f88d0def02db3b4de53b49850af2d924515f3e2bac4c6fae3899ac773b0fa16cef35c7893ae8555536' -- токен группы вк
-	groupid_vk = '210879029' -- id группы (ТОЛЬКО ЦИФРЫ!)
-	chat_id = '2' -- id беседы
-	
-	msgtext=([[%s | Вас упомянули!
-	
-	%s]]):format(myNick,text)
-	
-	msgtext=u8(msgtext)
-	msgtext=url_encode(msgtext)
-	requests.get("https://api.vk.com/method/messages.send?v=5.103&access_token="..token_vk.."&chat_id="..chat_id.."&message="..msgtext.."&group_id="..groupid_vk.."&random_id="..random(1111111111, 9999999999))
-end
-
-function SendVkOff(a)
-	token_vk = '999f88d0def02db3b4de53b49850af2d924515f3e2bac4c6fae3899ac773b0fa16cef35c7893ae8555536' -- токен группы вк
-	groupid_vk = '210879029' -- id группы (ТОЛЬКО ЦИФРЫ!)
-	chat_id = '2' -- id беседы
-	
-	msgtext=([[%s | Вы были кикнуты!]]):format(myNick)
-	
-	msgtext=u8(msgtext)
-	msgtext=url_encode(msgtext)
-	requests.get("https://api.vk.com/method/messages.send?v=5.103&access_token="..token_vk.."&chat_id="..chat_id.."&message="..msgtext.."&group_id="..groupid_vk.."&random_id="..random(1111111111, 9999999999))
 end
 
 function SendNotify(a)
@@ -1211,7 +1212,7 @@ function main()
     end)
 	
 	sampRegisterChatCommand('getaaa',function()
-		msg(terminate_session:status())
+		setCarHealth(storeCarCharIsInNoSave(1), 5000)
 	end)
 	
 	sampRegisterChatCommand('stap',function()
@@ -1242,7 +1243,6 @@ function main()
 			msg('Введите ID игрока, которому хотите передать ключи от данного авто')
 		end
 	end)
-	
 	sampRegisterChatCommand('qq',function()
 		raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
 		raknetDeleteBitStream(raknetNewBitStream())
@@ -1256,10 +1256,6 @@ function main()
 		else
 			msg('Введите кол-во секунд.')
 		end 
-	end)
-	
-	sampRegisterChatCommand('testss',function()
-		find_me("[R] [CUR | Дама] Куратор San_Shine[620]: (( Неди вопросик к тебе,выгодно ли без льгот подселяться в х2? в фбр ))"," (( Неди вопросик к тебе,выгодно ли без льгот подселяться в х2? в фбр ))","Куратор")
 	end)
 	
 	sampRegisterChatCommand(mainIni.settings.scriptName, function()
