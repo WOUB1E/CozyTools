@@ -1,5 +1,5 @@
 script_name("CosyTools")
-script_version("7")
+script_version("8")
 --[[
 ОБНОВЫ:
 
@@ -43,7 +43,22 @@ local myskin = 0
 local hook = {hooks = {}}
 local lastskin = 0
 local rab = false
+local CheckStat = false
+local CheckStatText = false
 local active = false
+local PayDayStat = {
+	ohraprocent = 0,
+	lgotaprocent = 0,
+	lgotalvl = 0,
+	xOst = 0,
+	x = 1,
+	bank = 0,
+	zp = 0,
+	depstat = 0,
+	dep = 0,
+	azstat = 0,
+	az = 0
+}
 --[[settings colors and lines]]
 local linewidth = '3.5' --[[Рекомендованные значения от 3.0 до 5.0]]
 --[[settings colors and lines]]
@@ -109,6 +124,15 @@ function samp.onShowDialog(did, style, title, b1, b2, text)
 		print(text)
 		print('-    ---    ---   ---   ---   ---   ---   -')
 	end
+	
+	if CheckStat then
+		if title:find("Основная статистика") then
+			sendTelegramNotification(MarkdownV2(text))
+			CheckStat = false
+			sampCloseCurrentDialogWithButton(1)
+		end
+	end
+	
 	if work.v then
 		if title:find('%{.+%}Активные предложения') then
 			local count = 0
@@ -128,10 +152,7 @@ function samp.onShowDialog(did, style, title, b1, b2, text)
 			end
 		end
 	end
-	if did == 0 and text:find("Поздравляем с получением.+") then
-		sampSendDialogResponse(did, 1, nil, nil)
-		return false
-	end
+
 	
 	if ap_work.v and rab then
 		if title:find("%{BFBBBA%}Личные настройки") then -- сеттингс
@@ -258,6 +279,31 @@ function samp.onServerMessage(color,text)
 		end
 		if text:find("^ A: .+") then
 			lua_thread.create(function() wait(100) sampSendChat("/thanks Ramp_Onion") end)
+		end
+		if debuger.v then
+			if text:find("^Вы получили — X4 PayDay %(осталось %d+ PayDay%)") then
+				PayDayStat.xOst = string.match(text,"^Вы получили — X4 PayDay %(осталось (%d+) PayDay%)")
+				PayDayStat.x = "4 (Ост. "..PayDayStat.xOst..")"
+			elseif text:find("^%[Выгодная рассрочка%] %{FFFFFF%}Вы получили 5 AZ%-монет%.") then
+				PayDayStat.az = PayDayStat.az + 5
+			elseif text:find("^%[Подсказка%] %{ffffff%}Ваша фракционная зарплата увеличена на %d+%%, поскольку у вашего охранника есть специальная характеристика%.") then
+				PayDayStat.ohraprocent = string.match(text,"^%[Подсказка%] %{ffffff%}Ваша фракционная зарплата увеличена на (%d+)%%, поскольку у вашего охранника есть специальная характеристика%.")
+			elseif text:find("^%[Подсказка%] %{ffffff%}Ваша фракционная зарплата увеличена на %d+%%, поскольку у Вас %d уровень льготы%.") then
+				PayDayStat.lgotaprocent, PayDayStat.lgotalvl = string.match(text,"^%[Подсказка%] %{ffffff%}Ваша фракционная зарплата увеличена на (%d+)%%, поскольку у Вас (%d) уровень льготы%.")
+			elseif text:find("^Текущая сумма в банке: $(%d+) %{33AA33%}%(%+$(%d+)%)") then
+				PayDayStat.bank, PayDayStat.zp = string.match(text,"^Текущая сумма в банке: $%d+ %{33AA33%}%(%+$%d+%)")
+			elseif text:find("^Текущая сумма на депозите: $%d+ %{33AA33%}%(%+$%d+%)") then
+				PayDayStat.depstat, PayDayStat.dep = string.match(text,"^Текущая сумма на депозите: $(%d+) %{33AA33%}%(%+$(%d+)%)")
+			elseif text:find("^Баланс на донат-счет: %d+ AZ %{ff6666%}%(%+%d+ AZ%)") then
+				PayDayStat.azstat, PayDayStat.az = string.match(text,"^Баланс на донат-счет: (%d+) AZ %{ff6666%}%(%+(%d+) AZ%)")
+			elseif text:find("^%[Случайные ситуации%] %{ffffff%}Вы получаете %{ff6666%}X2 PayDay %{ffffff%}за участие в завершенной ситуации! %(до .+%)") then
+				if PayDayStat.x < 2 then
+					PayDayStat.x = 2
+				end
+			elseif text:find('__________________________________________________________________________') then
+				SendTGPD()
+				PayDayStatClear()
+			end
 		end
 	end
 	-- Уведомление перед PD:
@@ -681,6 +727,22 @@ function char_to_hex(str)
   return string.format("%%%02X", string.byte(str))
 end
 
+function PayDayStatClear()
+	PayDayStat = {
+		ohraprocent = 0,
+		lgotaprocent = 0,
+		lgotalvl = 0,
+		xOst = 0,
+		x = 1,
+		bank = 0,
+		zp = 0,
+		depstat = 0,
+		dep = 0,
+		azstat = 0,
+		az = 0
+	}
+end
+
 function threadHandle(runner, url, args, resolve, reject) -- обработка effil потока без блокировок
 	local t = runner(url, args)
 	local r = t:get(0)
@@ -852,7 +914,7 @@ end
 local lower, sub, char, upper = string.lower, string.sub, string.char, string.upper
 local concat = table.concat
 
-function term(text)
+function term(text,trigger)
 	if active == false and aw_work.v then
 		if not terminate_session or terminate_session:status() == 'dead' then
 			terminate_session = lua_thread.create(function()
@@ -861,7 +923,7 @@ function term(text)
 					SendNotify(text)
 				end
 				if aw_tg then
-					sendTelegramNotificationWithButtons(text)
+					TGNotifyMention(text,trigger)
 				end
 
 				msg('Требуется кассир.')
@@ -886,11 +948,6 @@ function term(text)
 	end
 end
 
-function sendTelegramNotification(msg) -- функция для отправки сообщения юзеру
-    msg = msg:gsub('{......}', '') --тут типо убираем цвет
-    msg = encodeUrl(msg) -- ну тут мы закодируем строку
-    async_http_request('https://api.telegram.org/bot' .. token .. '/sendMessage?chat_id=' .. chat_id .. '&text='..msg,'', function(result) end) -- а тут уже отправка
-end
 
 function get_telegram_updates() -- функция получения сообщений от юзера
     while not updateid do wait(1) end -- ждем пока не узнаем последний ID
@@ -904,28 +961,100 @@ function get_telegram_updates() -- функция получения сообщений от юзера
     end
 end
 
-function sendTelegramNotificationWithButtons(msg)
-	getMyInfo()
-    msg = msg:gsub('{......}', '') -- убираем цвет
-    msg = encodeUrl('Требуется кассир '..myNick..'\n'..msg) -- кодируем строку 
+function MarkdownV2(text)
+    if not text or type(text) ~= "string" then return text end
+	local escape_chars = {'_', '*', '`', '[', ']', '(', ')', '~', '>', '<', '#', '+', '-', '=', '|', '{', '}', '.', '!'}
 
-	reply_markup = {
-		inline_keyboard = {
-			{
-				{ text = "Оффнуться", callback_data = "button1" },
-				{ text = "Выезд из штата", callback_data = "button2" },
-				{ text = "'Ау'", callback_data = "button3" },
-				{ text = "stap", callback_data = "button4" }
-			}
-		}
-	}
-
-    local reply_markup_encoded = encodeUrl(encodeJson(reply_markup)) -- кодируем reply_markup
-
-    async_http_request('https://api.telegram.org/bot' .. token .. '/sendMessage?chat_id=' .. chat_id .. '&text=' .. msg .. '&reply_markup=' .. reply_markup_encoded, '', function(result) end)
+    for _, char in ipairs(escape_chars) do
+        text = text:gsub('%'..char, '\\'..char)
+    end
+    
+    return text
 end
 
-function processing_telegram_messages(result) -- функция проверки того, что отправил  
+function sendTelegramNotification(msg) -- функция для отправки сообщения юзеру
+    async_http_request('https://api.telegram.org/bot' .. token .. '/sendMessage?chat_id=' .. chat_id .. '&text=' .. encodeUrl(msg:gsub('{......}', '')) ..'&parse_mode=MarkdownV2','', function(result) end) -- а тут уже отправка
+end
+
+function TGPersonalPanel()
+	getMyInfo()
+	
+	local msg = MarkdownV2(myNick .. '[' .. myid .. '] На связи.')
+	
+	local reply_markup = {
+        inline_keyboard = {
+            {
+                { text = "Оффнуться", callback_data = "QQButton" },
+                { text = "rec 5m", callback_data = "Rec5Button" },
+                { text = "rec 10m", callback_data = "Rec10Button" },
+                { text = "'Ау'", callback_data = "SendAyButton" },
+                { text = "get stat", callback_data = "StatButton" }
+            }
+        }
+    }
+	sendTelegramNotificationWithButtons(encodeUrl(msg), reply_markup)
+end
+
+function TGNotifyMention(msg,trigger)
+    getMyInfo()
+    
+    local msg = msg:gsub('{......}', '')
+    msg = 'Требуется кассир '..myNick..'\n'..msg
+	
+    msg = MarkdownV2(msg)
+
+    msg = msg:gsub(trigger, '**`'..trigger..'`**')
+
+    local reply_markup = {
+        inline_keyboard = {
+            {
+                { text = "Оффнуться", callback_data = "QQButton" },
+                { text = "Выезд из штата", callback_data = "MessageAndQQButton" },
+                { text = "'Ау'", callback_data = "SendAyButton" },
+                { text = "stap", callback_data = "StapButton" }
+            }
+        }
+    }
+	
+	sendTelegramNotificationWithButtons(encodeUrl(msg), reply_markup)
+end
+--[[
+```Neddie_Barlow[74] получил PayDay\nМножитель: x%s /| Охранник: %d/% /| %d Льгота: %d/%\nБанк: %d /| +%d\nДепозит: %d /| +%d\nAZ: %d /| +%d```
+--]]
+function SendTGPD()
+	getMyInfo()
+	msg = '``` '..MarkdownV2(myNick..'['..myid..']')..' получил PayDay\nМножитель: x%s /| Охранник: %d/% /| %d Льгота: %d/%\nБанк: %d /| +%d\nДепозит: %d /| +%d\nAZ: %d /| +%d```'
+	print(msg)
+	local msg = string.format(msg,SM(PayDayStat.x),SM(PayDayStat.ohraprocent),SM(PayDayStat.lgotalvl),SM(PayDayStat.lgotaprocent),SM(PayDayStat.bank),SM(PayDayStat.zp),SM(PayDayStat.depstat),SM(PayDayStat.dep),SM(PayDayStat.azstat),SM(PayDayStat.az))
+	print(msg)
+	sendTelegramNotification(msg)
+end
+
+function sendTelegramNotificationWithButtons(msg,buttons)
+    local url = 'https://api.telegram.org/bot'..token..
+                '/sendMessage?chat_id='..chat_id..
+                '&text='..msg..
+                '&parse_mode=MarkdownV2'..
+                '&reply_markup='.. encodeUrl(encodeJson(buttons))
+
+    async_http_request(url, '', function(result)
+        if not result then
+            print("Ошибка при отправке сообщения в Telegram")
+            return
+        end
+        
+        local ok, response = pcall(decodeJson, result)
+        if ok and response then
+            if not response.ok then
+                print("Ошибка Telegram API:", response.description)
+            end
+        else
+            print("Не удалось разобрать ответ от Telegram")
+        end
+    end)
+end
+
+function processing_telegram_messages(result) -- функция проверки того, что отправил  `
 	if not result then return end
     local ok, proc_table = pcall(decodeJson, result)
     if not ok or not proc_table or not proc_table.ok then return end
@@ -939,39 +1068,56 @@ function processing_telegram_messages(result) -- функция проверки того, что отпр
 					local message_from_user = res_table.message.text
 					if message_from_user then
 						local text = u8:decode(message_from_user) .. ' '
-						if text:match('^!r') then
-							sendTelegramNotification('Ку')
+						if text:match('^all') then
+							TGPersonalPanel()
+						elseif text:find("^#.+, .+") then
+							who, command = string.match(text,"^#(.+), (.+)")
+							getMyInfo()
+							if tonumber(who) == myid or who == myNick or who == "all" then
+								lua_thread.create(function()
+									wait(200)
+									sampProcessChatInput(command)
+									sendTelegramNotification(MarkdownV2(myNick .. '[' .. myid .. '] отправил '..command))
+								end)
+							end
 						end
+						
 					end
 				elseif res_table.callback_query then
+					getMyInfo()
 					if res_table.callback_query.message and 
 					   res_table.callback_query.message.text and 
 					   res_table.callback_query.message.text:find(myNick) then
 						local callback_data = res_table.callback_query.data
-						if callback_data == "button1" then
+						if callback_data == "QQButton" then
 							raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
 							raknetDeleteBitStream(raknetNewBitStream())
-							sendTelegramNotification("Вы вышли из игры.")
-						elseif callback_data == "button2" then
+							sendTelegramNotification(MarkdownV2(myNick .. '[' .. myid .. '] вышел из игры.'))
+						elseif callback_data == "MessageAndQQButton" then
 							lua_thread.create(function()
 								sampSendChat('/r Извините, но я уже уезжаю из штата')
 								wait(7000)
 								raknetEmulPacketReceiveBitStream(PACKET_DISCONNECTION_NOTIFICATION, raknetNewBitStream())
 								raknetDeleteBitStream(raknetNewBitStream())
-								sendTelegramNotification("Отправлено сообщение об оффе.\nВы вышли из игры.")
+								sendTelegramNotification(MarkdownV2(myNick .. '[' .. myid .. '] отправил сообщение об оффе.\nВы вышли из игры.'))
 							end)
-						elseif callback_data == "button3" then
+						elseif callback_data == "SendAyButton" then
 							sampSendChat("/r Ау")
-							sendTelegramNotification("Отправлено сообщение 'Ау' в рацию.")
-						elseif callback_data == "button4" then
+							sendTelegramNotification(MarkdownV2(myNick .. '[' .. myid .. "] отправлил сообщение 'Ау' в рацию."))
+						elseif callback_data == "StapButton" then
 							if terminate_session and terminate_session:status() == 'yielded' then
 								terminate_session:terminate()
 								active = false
 								msg('AntiWarn | Галя, отмена!!')
-								sendTelegramNotification("Выход предотвращен.")
-							else
-								sendTelegramNotification("Уэээ бля, че творишь.")
+								sendTelegramNotification(MarkdownV2(myNick .. '[' .. myid .. "] передумал выходить."))
 							end
+						elseif callback_data == "Rec5Button" then
+							rec(300000)
+						elseif callback_data == "Rec10Button" then
+							rec(600000)
+						elseif callback_data == "StatButton" then
+							sampSendChat('/stats')
+							CheckStat = true
 						end
 					end
 				end
@@ -1023,21 +1169,21 @@ function find_me(text,textt,tag)
 	for _, vv in pairs(mainIni.aw_leaders) do
 		vv = string.nlower(u8:decode(vv))
 		if tag:find(vv) then
-			if debuger then
+			if debuger.v then
 				print('FOUND | '..tag..' | '..vv)
 			end
 			for _, v in pairs(mainIni.aw_names) do
 				v = string.nlower(u8:decode(v))
 				if textt:find(v) then
-					term(text)
+					term(text,v)
 				else
-					if debuger then
+					if debuger.v then
 						print('NF | '..textt..' | '..v)
 					end
 				end
 			end
 		else
-			if debuger then
+			if debuger.v then
 				print('NF | '..tag..' | '..vv)
 			end
 		end
@@ -1062,7 +1208,7 @@ function string.nlower(s)
         res[i] = ul_rus[ch] or ch
     end
     return concat(res)
-end
+end 
 
 function SummonSettings()
 	if sampIsDialogActive() or sampIsChatInputActive() then
@@ -1248,6 +1394,21 @@ function main()
 		raknetDeleteBitStream(raknetNewBitStream())
 	end)
 	
+	sampRegisterChatCommand('stest',function()
+		print(PayDayStat.ohraprocent)
+print(PayDayStat.lgotaprocent)
+print(PayDayStat.lgotalvl)
+print(PayDayStat.xOst)
+print(PayDayStat.x)
+print(PayDayStat.bank)
+print(PayDayStat.zp)
+print(PayDayStat.depstat)
+print(PayDayStat.dep)
+print(PayDayStat.azstat)
+print(PayDayStat.az)
+		--SendTGPD()
+	end)
+	
 	sampRegisterChatCommand('lrec',function(arg)
 		if tonumber(arg) then
 			msg('Перезаходим через '..arg..' сек.')
@@ -1285,3 +1446,27 @@ function main()
         imgui.Process = main_window_state.v
 	end
 end
+
+function comma_value(n)
+	local left,num,right = string.match(n,'^([^%d]*%d)(%d*)(.-)$')
+	return left..(num:reverse():gsub('(%d%d%d)','%1.'):reverse())..right
+end
+
+--[[INCOMING_RPCS[RPC.SETOBJECTMATERIAL]          = {{'onSetObjectMaterial', 'onSetObjectMaterialText'}, handler.rpc_set_object_material_reader, handler.rpc_set_object_material_writer}]]
+function separator(text) -- by Royan_Millans
+	for S in string.gmatch(text, "%$%d+") do
+		local replace = comma_value(S)
+		text = string.gsub(text, S, replace, 1)
+	end
+	for S in string.gmatch(text, "%d+%$") do
+		S = string.sub(S, 0, #S-1)
+		local replace = comma_value(S)
+		text = string.gsub(text, S, replace, 1)
+	end
+	return text
+end
+
+function SM(text)
+	MarkdownV2(separator(text))
+end
+	
