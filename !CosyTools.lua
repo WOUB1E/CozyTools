@@ -1,5 +1,5 @@
 script_name("CosyTools")
-script_version("8")
+script_version("9")
 --[[
 намнбш:
 
