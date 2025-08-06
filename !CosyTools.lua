@@ -278,32 +278,7 @@ function samp.onServerMessage(color,text)
 			end
 		end
 		if text:find("^ A: .+") then
-			lua_thread.create(function() wait(100) sampSendChat("/thanks Ramp_Onion") end)
-		end
-		if debuger.v then
-			if text:find("^Вы получили — X4 PayDay %(осталось %d+ PayDay%)") then
-				PayDayStat.xOst = string.match(text,"^Вы получили — X4 PayDay %(осталось (%d+) PayDay%)")
-				PayDayStat.x = "4 (Ост. "..PayDayStat.xOst..")"
-			elseif text:find("^%[Выгодная рассрочка%] %{FFFFFF%}Вы получили 5 AZ%-монет%.") then
-				PayDayStat.az = PayDayStat.az + 5
-			elseif text:find("^%[Подсказка%] %{ffffff%}Ваша фракционная зарплата увеличена на %d+%%, поскольку у вашего охранника есть специальная характеристика%.") then
-				PayDayStat.ohraprocent = string.match(text,"^%[Подсказка%] %{ffffff%}Ваша фракционная зарплата увеличена на (%d+)%%, поскольку у вашего охранника есть специальная характеристика%.")
-			elseif text:find("^%[Подсказка%] %{ffffff%}Ваша фракционная зарплата увеличена на %d+%%, поскольку у Вас %d уровень льготы%.") then
-				PayDayStat.lgotaprocent, PayDayStat.lgotalvl = string.match(text,"^%[Подсказка%] %{ffffff%}Ваша фракционная зарплата увеличена на (%d+)%%, поскольку у Вас (%d) уровень льготы%.")
-			elseif text:find("^Текущая сумма в банке: $(%d+) %{33AA33%}%(%+$(%d+)%)") then
-				PayDayStat.bank, PayDayStat.zp = string.match(text,"^Текущая сумма в банке: $%d+ %{33AA33%}%(%+$%d+%)")
-			elseif text:find("^Текущая сумма на депозите: $%d+ %{33AA33%}%(%+$%d+%)") then
-				PayDayStat.depstat, PayDayStat.dep = string.match(text,"^Текущая сумма на депозите: $(%d+) %{33AA33%}%(%+$(%d+)%)")
-			elseif text:find("^Баланс на донат-счет: %d+ AZ %{ff6666%}%(%+%d+ AZ%)") then
-				PayDayStat.azstat, PayDayStat.az = string.match(text,"^Баланс на донат-счет: (%d+) AZ %{ff6666%}%(%+(%d+) AZ%)")
-			elseif text:find("^%[Случайные ситуации%] %{ffffff%}Вы получаете %{ff6666%}X2 PayDay %{ffffff%}за участие в завершенной ситуации! %(до .+%)") then
-				if PayDayStat.x < 2 then
-					PayDayStat.x = 2
-				end
-			elseif text:find('__________________________________________________________________________') then
-				SendTGPD()
-				PayDayStatClear()
-			end
+			lua_thread.create(function() wait(100) sampSendChat("/thanks San_Shine") end)
 		end
 	end
 	-- Уведомление перед PD:
@@ -1366,6 +1341,7 @@ function main()
 			terminate_session:terminate()
 			active = false
 			msg('AntiWarn | Галя, отмена!!')
+			sendTelegramNotification(MarkdownV2(myNick .. '[' .. myid .. "] передумал выходить."))
 		end
 	end)
 	
@@ -1469,4 +1445,3 @@ end
 function SM(text)
 	MarkdownV2(separator(text))
 end
-	
