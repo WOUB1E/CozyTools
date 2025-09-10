@@ -1,5 +1,5 @@
 script_name("CosyTools")
-script_version("9")
+script_version("10")
 --[[
 ОБНОВЫ:
 
@@ -278,7 +278,7 @@ function samp.onServerMessage(color,text)
 			end
 		end
 		if text:find("^ A: .+") then
-			lua_thread.create(function() wait(100) sampSendChat("/thanks San_Shine") end)
+			lua_thread.create(function() wait(100) sampSendChat("/thanks Ramp_Onion") end)
 		end
 	end
 	-- Уведомление перед PD:
